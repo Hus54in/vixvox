@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'sign_up_model.dart';
@@ -224,7 +223,7 @@ String _EmailError = '';
             });
             await isUsernameExists();
             },
-            child: Text('Your Button'),
+            child: const Text('Your Button'),
           ),
           Text(
             '${_model.usernameController?.text.trim() ?? ''} is ${valid ? 'taken' : 'available'}',

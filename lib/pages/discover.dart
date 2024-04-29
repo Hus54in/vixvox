@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
-import 'movie_details.dart'; // Import the movie details page
+import '../show_details/movie_details.dart'; // Import the movie details page
 import 'package:shimmer/shimmer.dart'; // Import the shimmer package
 export 'discover_model.dart';
 
@@ -171,6 +171,7 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        
                       ),
                     ),
                     FutureBuilder<String>(

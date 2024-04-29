@@ -102,10 +102,10 @@ class TMDBApi {
     return episodeRuntime.isNotEmpty ? episodeRuntime[0] : 0;
   }
 
-  Future<List<String>> getTVShowGenres(int tvShowId) async {
+  Future<String> getTVShowGenres(int tvShowId) async {
     final tvShowDetails = await getTVShowDetails(tvShowId);
     final genres = tvShowDetails['genres'] as List<dynamic>;
-    return genres.map((genre) => genre['name'].toString()).toList();
+    return genres.map((genre) => genre['name'].toString()).join(' • ');
   }
 
   Future<String> getTVShowReleaseDate(int tvShowId) async {
@@ -118,24 +118,57 @@ class TMDBApi {
     return tvShowDetails['overview'];
   }
 
-  Future<String> getTVShowPoster(int tvShowId) async {
+ Future<String> getTVShowPoster(int tvShowId) async {
     final tvShowDetails = await getTVShowDetails(tvShowId);
     final posterPath = tvShowDetails['poster_path'];
-    return 'https://image.tmdb.org/t/p/original$posterPath';
+    final posterUrl = posterPath != null ? 'https://image.tmdb.org/t/p/w500$posterPath' : '';
+    return await _cacheImage(posterUrl);
   }
 
-  Future<String?> getTrailer(int movieId) async {
-    final endpoint = '/movie/$movieId/videos';
-    final response = await _fetchData(endpoint);
+  Future<Map<String, dynamic>> getTVShowWatchProviders(int tvShowID) async {
+    final String url = 'https://api.themoviedb.org/3/tv/$tvShowID/watch/providers?api_key=$apiKey';
+    
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return data;
+      } else {
+        throw Exception('Failed to load watch providers');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+
+Future<String?> getMovieTrailer(int movieId) async {
+  final endpoint = '/movie/$movieId/videos';
+  final response = await _fetchData(endpoint);
   
-    final results = response['results'] as List<dynamic>;
-    final trailer = results.firstWhere(
-      (result) => result['type'] == 'Trailer',
-      orElse: () => null,
-    );
+  final results = response['results'] as List<dynamic>;
+  final trailer = results.firstWhere(
+    (result) => result['type'] == 'Trailer',
+    orElse: () => null,
+  );
 
-    return trailer != null ? 'https://www.youtube.com/watch?v=${trailer['key']}' : null;
-  }
+  return trailer != null ? 'https://www.youtube.com/watch?v=${trailer['key']}' : null;
+}
+
+Future<String?> getTVShowTrailer(int tvShowId) async {
+  final endpoint = '/tv/$tvShowId/videos';
+  final response = await _fetchData(endpoint);
+  
+  final results = response['results'] as List<dynamic>;
+  final trailer = results.firstWhere(
+    (result) => result['type'] == 'Trailer',
+    orElse: () => null,
+  );
+
+  return trailer != null ? 'https://www.youtube.com/watch?v=${trailer['key']}' : null;
+}
+
 
   Future<List<Map<String, dynamic>>> getTrendingMovies() async {
     final endpoint = '/trending/movie/week';
@@ -262,6 +295,14 @@ Future<Map<String, dynamic>> getMovieRatings(int movieId) async {
     'voteCount': response['vote_count'],
   };
 }
+Future<Map<String, dynamic>> gettvshowRatings(int movieId) async {
+  final endpoint = '/tv/$movieId';
+  final response = await _fetchData(endpoint);
+  return {
+    'averageRating': response['vote_average'],
+    'voteCount': response['vote_count'],
+  };
+}
 
 Future<Map<String, dynamic>> getCollectionDetails(int collectionId) async {
   final endpoint = '/collection/$collectionId';
@@ -294,5 +335,41 @@ Future<int> getVoteCount(int movieId) async {
   final movieDetails = await getMovieDetails(movieId);
   return movieDetails['vote_count'];
 }
+
+Future<Map<String, dynamic>> getTVShowCredits(int tvShowId) async {
+  final endpoint = '/tv/$tvShowId/credits';
+  return await _fetchData(endpoint);
+}
+
+Future<List<Map<String, dynamic>>> getTVShowCast(int tvShowId) async {
+  final credits = await getTVShowCredits(tvShowId);
+  final cast = credits['cast'] as List<dynamic>;
+  
+  return Future.wait(cast.map((actor) async {
+    final profilePath = actor['profile_path'];
+    final profilePicUrl = profilePath != null ? 'https://image.tmdb.org/t/p/w185$profilePath' : '';
+    
+    final cachedProfilePicUrl = await _cacheImage(profilePicUrl);
+
+    return {
+      'name': actor['name'].toString(),
+      'profilePic': cachedProfilePicUrl,
+      'character': actor['character'].toString(),
+    };
+  }).toList());
+}
+
+Future<List<String>> getTVShowDirectors(int tvShowId) async {
+  final credits = await getTVShowCredits(tvShowId);
+  final crew = credits['crew'] as List<dynamic>;
+
+  // Filter crew members to get only the director(s)
+  final directors = crew.where((crewMember) => crewMember['job'] == 'Director');
+
+  return directors.map((director) {
+    return director['name'].toString();
+  }).toList();
+}
+
 
   }

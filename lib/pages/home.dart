@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:vixvox/pages/movie_details.dart';
+import 'package:vixvox/show_details/TVShow_Details.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
 
 import 'homemodel.dart';
@@ -125,8 +125,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const MovieDetailsWidget(
-                                movieID: 299534,
+                              builder: (context) => const TVShowDetailsWidget(
+                                tvShowID: 100088,
                               ),
                             ),
                           );

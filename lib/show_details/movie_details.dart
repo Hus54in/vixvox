@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,6 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
 import 'package:shimmer/shimmer.dart';
 import 'package:vixvox/pages/summary.dart';
-import 'package:flutter/material.dart';
 
 class MovieDetailsWidget extends StatefulWidget {
   const MovieDetailsWidget({
@@ -28,8 +28,8 @@ class MovieDetailsWidget extends StatefulWidget {
 
 class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
   late MovieDetailsModel _model;
-  late List<DropdownMenuItem<String>> _items = [];
-
+  late Map<String, dynamic> _items = {'0': {'name': 'My List', 'list': [1234, 5678]}};
+  late bool add_button = false;
   late String _movieLength;
   late String _movieReleaseDate;
   late String _movieGenres;
@@ -39,21 +39,22 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
   late String _moviePoster = ''; // Initialize with an empty string
   late Map<String, dynamic> _watchProviders = {};
   late double _rating = 0.0;
-  late Color dominantColor;
-  late Color darkVibrantColor;
+  late Color dominantColor = Colors.black;
+  late Color darkVibrantColor = Colors.grey.shade900;
   final _cacheManager = DefaultCacheManager();
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final bool _showAppBar = true;
   final String _countryCode = 'CA'; // Hardcoded country code for Canada
 
-  late String _selectedList = ''; // Selected wishlist from dropdown
+  late String _selectedList = '0'; // Selected wishlist from dropdown
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => MovieDetailsModel());
-    _fetchMovieDetails();
     _buildDropdownItems();
+    _fetchMovieDetails();
+    _isMovieAddedToSelectedList();
   }
 
   Future<void> _fetchMovieDetails() async {
@@ -63,7 +64,7 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
     _movieGenres = await tmdb.TMDBApi().getMovieGenres(widget.movieID) ?? '';
     _movieName = await tmdb.TMDBApi().getMovieTitle(widget.movieID) ?? '';
     _summary = await tmdb.TMDBApi().getMovieSummary(widget.movieID) ?? '';
-    _trailer = await tmdb.TMDBApi().getTrailer(widget.movieID) ?? '';
+    _trailer = await tmdb.TMDBApi().getMovieTrailer(widget.movieID) ?? '';
 
     final moviePoster = await tmdb.TMDBApi().getMoviePoster(widget.movieID);
     setState(() {
@@ -129,7 +130,7 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                   builder: (BuildContext context, BoxConstraints constraints) {
                     return FlexibleSpaceBar(
                       title: Text(
-                        _movieName ?? '',
+                        _movieName,
                         style: const TextStyle(fontSize: 20),
                       ),
                     );
@@ -174,22 +175,40 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                           ),
                           Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _movieLength,
+                            child: Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Text(
+                                _movieLength,
+                                style: const TextStyle(color: Colors.white),
+                              ),
                             ),
                           ),
+
                           Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _movieReleaseDate,
+                            child: Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Text(
+                                _movieReleaseDate,
+                                style: const TextStyle(color: Colors.white),
+                              ),
                             ),
                           ),
+
                           Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _movieGenres,
+                            child: Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Text(
+                                _movieGenres,
+                                style: const TextStyle(color: Colors.white),
+                              ),
                             ),
                           ),
+
                         ],
                       ),
                     ],
@@ -251,45 +270,130 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      DropdownButton<String>(
-                        value: _selectedList,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedList = newValue!;
-                          });
-                        },
-                        items:  _items,
-                        hint: Text(
-                          'Select Wishlist',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        dropdownColor: Colors.grey[800],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () {
-                          if (_selectedList.isNotEmpty) {
-                            addMovieToWishlist(_selectedList, widget.movieID);
-                          } else {
-                            
-
-
-
-                              SnackBar(
-                                content: Text('Please select a wishlist'),
-                              );
-                            
-                          }
-                        },
-                      ),
-                    ],
+Padding(
+  padding: const EdgeInsets.all(15),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      SizedBox(
+        width: 200, // Provide a specific width
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton2<String>(
+            hint: const Row(
+              children: [
+                Icon(
+                  Icons.list,
+                  size: 16,
+                  color: Colors.yellow,
+                ),
+                SizedBox(
+                  width: 4,
+                ),
+                Expanded(
+                  child: Text(
+                    'Select Wishlist',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.yellow,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              ],
+            ),
+            isExpanded: true,
+            items: _items.entries
+                .map((entry) => DropdownMenuItem<String>(
+                      value: entry.key,
+                      child: Text(
+                        entry.value['name'],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ))
+                .toList(),
+            value: _selectedList,
+            onChanged: (value) {
+              setState(() {
+                _selectedList = value!;
+                add_button = _isMovieAddedToSelectedList();
+              });
+            },
+            buttonStyleData: ButtonStyleData(
+              height: 50,
+              width: 160,
+              padding: const EdgeInsets.only(left: 14, right: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.black26,
+                ),
+                color: Colors.blueGrey.shade900, // Adjust color if needed
+              ),
+              elevation: 2,
+            ),
+            iconStyleData: const IconStyleData(
+              icon: Icon(
+                Icons.keyboard_arrow_down_rounded, // Change the arrow direction
+              ),
+              iconSize: 24,
+              iconEnabledColor: Colors.white,
+              iconDisabledColor: Colors.grey,
+            ),
+            dropdownStyleData: DropdownStyleData(
+              maxHeight: 200,
+              width: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.blueGrey.shade900, // Adjust color if needed
+              ),
+              scrollbarTheme: ScrollbarThemeData(
+                radius: const Radius.circular(40),
+                thickness: MaterialStateProperty.all(6),
+                thumbVisibility: MaterialStateProperty.all(true),
+              ),
+            ),
+            menuItemStyleData: const MenuItemStyleData(
+              height: 40,
+              padding: EdgeInsets.only(left: 14, right: 14),
+            ),
+          ),
+        ),
+      ),
+      IconButton(
+  icon: Icon(
+    add_button ? Icons.check : Icons.add,
+  ),
+  onPressed: () {
+     setState(() {
+    // Check if the movie is already added to the selected list
+    if (_isMovieAddedToSelectedList()) {
+      // Movie is added, remove it from the selected list
+      removeMovieFromWishlist(_selectedList, widget.movieID);
+      add_button = false;
+    } else {
+      // Movie is not added, add it to the selected list
+      addMovieToWishlist(_selectedList, widget.movieID);
+      add_button = true;
+    }
+   });
+  },
+  
+)
+
+
+
+    ],
+  ),
+),
+
+
+
                 Padding(
                   padding: const EdgeInsets.all(15),
                   child: Column(
@@ -393,45 +497,21 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
     );
   }
 
-  Future<void> _buildDropdownItems() async {
-  DocumentReference doc =
-      FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+Future<void> _buildDropdownItems() async {
+  DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
 
   // Check if the wishlist already exists
   DocumentSnapshot<Object?> wishlistSnapshot = await doc.get();
 
   Map<String, dynamic>? wishlistMap = wishlistSnapshot['wishlist'] as Map<String, dynamic>?;
-  if (wishlistMap != null) {
-    // Clear the existing items before adding new ones
-    _items.clear();
+  setState(() {
+    _items = wishlistMap ?? {};
+    _selectedList = _items.keys.first;
+    add_button = _isMovieAddedToSelectedList();
+  });
 
-    // Add a default item for no selection
-    _items.add(
-      DropdownMenuItem(
-        value: '',
-        child: Text(
-          'Select Wishlist',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-    );
-
-    // Iterate through each wishlist in Firebase and create a dropdown item
-    wishlistMap.forEach((key, value) {
-      // Append a timestamp to ensure uniqueness
-      String uniqueValue = '$key-${DateTime.now().millisecondsSinceEpoch}';
-      _items.add(
-        DropdownMenuItem(
-          value: uniqueValue,
-          child: Text(
-            key,
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-    });
-  }
 }
+
 
 
   List<Widget> _buildProviderWidgets() {
@@ -504,39 +584,102 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
     }
   }
 
-  Future<void> addMovieToWishlist(String listName, int movieId) async {
-
+  Future<void> addMovieToWishlist(String listID, int movieId) async {
+  try {
     // Get a reference to the user's document
-    DocumentReference doc = await FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
-    // Check if the wishlist already exists
-    DocumentSnapshot<Object?> wishlistSnapshot = await doc.get();
-  if (wishlistSnapshot.exists && !(wishlistSnapshot.data() as Map).containsKey('wishlist')) {
-  // Wishlist field exists
-  // Now you can access the wishlist data
-  await doc.set({'wishlist': {}}, SetOptions(merge: true));
-} 
-Map<String, dynamic>? wishlistMap = wishlistSnapshot['wishlist'] as Map<String, dynamic>?;
-      print(wishlistMap);
-      if (wishlistMap == null || !wishlistMap.containsKey(listName)) {
-        await doc.set({'wishlist': {listName:[]}});
-      } 
-    
-  List<dynamic>? moviesList = wishlistMap?[listName] as List<dynamic>?;
-          print(moviesList);
-          if (moviesList != null) {
-            // Check if the movieId already exists in the list
-            if (!moviesList.contains(movieId)) {
-              // Add the movieId to the movies list
+    DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
 
-            wishlistMap?[listName].add(movieId);
-            await doc.set({'wishlist': wishlistMap}, SetOptions(merge: true));
-            }
-          
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      // Retrieve the user document within the transaction
+      DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
 
-}   
+      // Ensure the user document exists
+      if (userSnapshot.exists) {
+        Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
 
-  } 
+        // Ensure wishlist field exists
+        if (!userData.containsKey('wishlist')) {
+          userData['wishlist'] = {};
+        }
+
+        Map<String, dynamic> wishlistMap = userData['wishlist'];
+
+
+
+        List<dynamic> moviesList = wishlistMap[listID]['list'];
+
+        // Check if the movieId already exists in the list
+        if (!moviesList.contains(movieId)) {
+          // Add the movieId to the movies list
+          moviesList.add(movieId);
+        }
+
+        // Update the user document with the modified wishlist data
+        transaction.update(doc, {'wishlist': wishlistMap});
+        _items[_selectedList]?['list'].add(movieId);
+        //_buildDropdownItems();
+      }
+    });
+  } catch (error) {
+    // Handle any errors that occur during the transaction
+    print("Error adding movie to wishlist: $error");
+  }
+}
+Future<void> removeMovieFromWishlist(String listID, int movieId) async {
+  try {
+    // Get a reference to the user's document
+    DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      // Retrieve the user document within the transaction
+      DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
+
+      // Ensure the user document exists
+      if (userSnapshot.exists) {
+        Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+
+        // Ensure wishlist field exists
+        if (!userData.containsKey('wishlist')) {
+          userData['wishlist'] = {};
+        }
+
+        Map<String, dynamic> wishlistMap = userData['wishlist'];
+
+        // Check if the listID exists in the wishlist
+        if (wishlistMap.containsKey(listID)) {
+          List<dynamic> moviesList = wishlistMap[listID]['list'];
+
+          // Check if the movieId exists in the list
+          if (moviesList.contains(movieId)) {
+            // Remove the movieId from the movies list
+            moviesList.remove(movieId);
+          }
+
+          // Update the user document with the modified wishlist data
+          _items[_selectedList]?['list'].remove(movieId);
+          transaction.update(doc, {'wishlist': wishlistMap});
+          //_buildDropdownItems();
+        }
+      }
+    });
+  } catch (error) {
+    // Handle any errors that occur during the transaction
+    print("Error removing movie from wishlist: $error");
+  }
+}
+
   MovieDetailsModel createModel(BuildContext context, MovieDetailsModel Function() param1) {
     return MovieDetailsModel();
   }
+
+
+bool _isMovieAddedToSelectedList() {
+  // Check if the selected list contains the movie ID
+  if (_items.containsKey(_selectedList)) {
+    List<dynamic>? movieList = _items[_selectedList]?['list']; // Assuming 'list' key contains the movie list
+    return movieList != null && movieList.contains(widget.movieID);
+  }
+  return false;
+}
+
 }
