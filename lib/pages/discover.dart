@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:vixvox/TMDBapi/media.dart';
+import 'package:vixvox/TMDBapi/movie.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
-import '../show_details/movie_details.dart'; // Import the movie details page
-import 'package:shimmer/shimmer.dart'; // Import the shimmer package
-export 'discover_model.dart';
+import 'package:shimmer/shimmer.dart';
+import '../show_details/movie_details.dart';
 
 class DiscoverWidget extends StatefulWidget {
   const DiscoverWidget({super.key});
@@ -15,14 +15,14 @@ class DiscoverWidget extends StatefulWidget {
 
 class _DiscoverWidgetState extends State<DiscoverWidget> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _suggestions = [];
-  List<Map<String, dynamic>> _searchResults = [];
+  List<Media> _results = [];
+  List<Media> _suggestions = [];
   Timer? _debounce;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: null, // Remove the app bar
+      appBar: null,
       body: SafeArea(
         top: true,
         child: Column(
@@ -30,7 +30,7 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
           children: [
             const Padding(
               padding: EdgeInsetsDirectional.fromSTEB(16, 0, 0, 0),
-              child: Text('See trending movies'),
+              child: Text('See trending movies and TV shows'),
             ),
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 8),
@@ -39,11 +39,11 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
                   Expanded(
                     child: TextFormField(
                       controller: _searchController,
-                      onChanged: _searchMovies,
-                      onFieldSubmitted: _searchOnSubmit, // Search when enter is pressed
-                      textInputAction: TextInputAction.search, // Change enter button to search for iOS
+                      onChanged: _onSearchChanged,
+                      onFieldSubmitted: _performSearch,
+                      textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
-                        labelText: 'Search Movies',
+                        labelText: 'Search Movies and TV Shows',
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(
                             width: 2,
@@ -74,27 +74,168 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
                 ],
               ),
             ),
+            if (_suggestions.isNotEmpty)
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _suggestions.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: InkWell(
+                        onTap: () {
+                          _searchController.text = _suggestions[index].title;
+                          _performSearch(_suggestions[index].title);
+                          setState(() {
+                            _suggestions = [];
+                          });
+                        },
+                        child: Text(_suggestions[index].title),
+                      ),
+                    );
+                  },
+                ),
+              )
+            else
+              Expanded(
+                child: _results.isNotEmpty
+                    ? ListView.builder(
+                        itemCount: _results.length,
+                        itemBuilder: (context, index) {
+                          return _buildResultItem(_results[index]);
+                        },
+                      )
+                    : Center(
+                        child: Text('No results found'),
+                      ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultItem(Media media) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MovieDetailsWidget(movieID: media.id ),
+            ),
+          );
+        },
+        child: Row(
+          children: [
+            FutureBuilder<String>(
+              future: Future.value(media.posterUrl),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting ||
+                    snapshot.connectionState == ConnectionState.none) {
+                  return Shimmer.fromColors(
+                    baseColor: Colors.grey[300]!,
+                    highlightColor: Colors.grey[100]!,
+                    child: Container(
+                      width: 100,
+                      height: 150,
+                      color: Colors.white,
+                    ),
+                  );
+                } else if (snapshot.hasError || snapshot.data == null) {
+                  return SizedBox(
+                    width: 100,
+                    height: 150,
+                    child: Center(
+                      child: Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: Container(
+                          width: 100,
+                          height: 150,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  );
+                } else {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      snapshot.data!,
+                      width: 100,
+                      height: 150,
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(width: 16),
             Expanded(
-              child: _suggestions.isNotEmpty
-                  ? ListView.builder(
-                      itemCount: _suggestions.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          title: InkWell(
-                            onTap: () {
-                              _searchController.text = _suggestions[index]['title'];
-                              _performSearch(_suggestions[index]['title']); // Perform search on suggestion click
-                              // Clear suggestions list when a suggestion is tapped
-                              setState(() {
-                                _suggestions = [];
-                              });
-                            },
-                            child: Text(_suggestions[index]['title']),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          color: _getRatingColor(media.voteAverage),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Text(
+                          media.voteAverage.toString(),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      media is Movie
+                          ? const Icon(
+                              Icons.movie,
+                              color: Colors.grey,
+                              size: 18,
+                            )
+                          : const Icon(
+                              Icons.tv,
+                              color: Colors.grey,
+                              size: 18,
+                            ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    media.title,
+                    softWrap: true,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  FutureBuilder<String>(
+                    future: Future.value(media.releaseDate),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      } else if (snapshot.hasError) {
+                        return const Text('Release Date Error');
+                      } else {
+                        return Text(
+                          snapshot.data ?? 'Release Date not available',
+                          softWrap: true,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
                           ),
                         );
-                      },
-                    )
-                  : _buildSearchResults(),
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -102,153 +243,47 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
     );
   }
 
-  Widget _buildSearchResults() {
-    return ListView.builder(
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: GestureDetector(
-            onTap: () async {
-              final movieId = _searchResults[index]['id'];
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MovieDetailsWidget(movieID: movieId),
-                ),
-              );
-            },
-            child: Row(
-              children: [
-                FutureBuilder<String>(
-                  future: _loadPoster(_searchResults[index]['id'], retryCount: 3), // Retry 3 times if loading fails
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting || snapshot.connectionState == ConnectionState.none) {
-                      return Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
-                        child: Container(
-                          width: 100,
-                          height: 150,
-                          color: Colors.white,
-                        ),
-                      );
-                    } else if (snapshot.hasError || snapshot.data == null) {
-                      return SizedBox(
-                        width: 100,
-                        height: 150,
-                        child: Center(
-                          child: Shimmer.fromColors(
-                            baseColor: Colors.grey[300]!,
-                            highlightColor: Colors.grey[100]!,
-                            child: Container(
-                              width: 100,
-                              height: 150,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                      );
-                    } else {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.file(
-                          File(snapshot.data!), // Load image from local file
-                          width: 100,
-                          height: 150,
-                          fit: BoxFit.cover,
-                        ),
-                      );
-                    }
-                  },
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _searchResults[index]['title'],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        
-                      ),
-                    ),
-                    FutureBuilder<String>(
-                      future: tmdb.TMDBApi().getMovieReleaseDate(_searchResults[index]['id']),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const CircularProgressIndicator();
-                        } else if (snapshot.hasError) {
-                          return const Text('Release Date Error');
-                        } else {
-                          return Text(
-                            snapshot.data ?? 'Release Date not available',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<String> _loadPoster(int movieId, {int retryCount = 3}) async {
-    try {
-      return await tmdb.TMDBApi().getMoviePoster(movieId);
-    } catch (e) {
-      if (retryCount > 0) {
-        // Retry loading poster
-        return _loadPoster(movieId, retryCount: retryCount - 1);
-      } else {
-        // No more retries, return empty string
-        return '';
-      }
-    }
-  }
-
-  void _searchMovies(String query) {
+  void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
+    _debounce = Timer(const Duration(milliseconds: 500), () {
       if (query.isNotEmpty) {
-        final suggestions = await tmdb.TMDBApi().searchMovies(query);
+        _searchSuggestions(query);
+      } else {
         setState(() {
-          _suggestions = suggestions.take(5).toList();
+          _suggestions = [];
+          _results = [];
         });
       }
     });
+  }
 
-    // Clear suggestions list if query is empty
-    if (query.isEmpty) {
-      setState(() {
-        _suggestions = [];
-      });
-    }
+  void _searchSuggestions(String query) async {
+    final suggestions = await tmdb.TMDBApi().searchMedia(query);
+    setState(() {
+      _suggestions = suggestions.take(5).toList();
+    });
   }
 
   void _performSearch(String query) async {
-    final results = await tmdb.TMDBApi().searchMovies(query);
+    final results = await tmdb.TMDBApi().searchMedia(query);
     setState(() {
-      _searchResults = results;
+      _results = results;
+      _suggestions = [];
     });
-
-    // Dismiss the keyboard after setting search results
     FocusScope.of(context).unfocus();
   }
 
-  void _searchOnSubmit(String value) {
-    _performSearch(value);
-    setState(() {
-      _suggestions = [];
-    });
+  Color _getRatingColor(double rating) {
+    if (rating >= 10.0) {
+      return Colors.green.shade900;
+    } else if (rating >= 7.0) {
+      return const Color.fromARGB(255, 9, 151, 14);
+    } else if (rating >= 5.0) {
+      return Colors.yellow.shade600;
+    } else if (rating >= 3.0) {
+      return Colors.orange.shade600;
+    } else {
+      return Colors.red.shade900;
+    }
   }
 }

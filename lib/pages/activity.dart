@@ -1,15 +1,14 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vixvox/TMDBapi/movie.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
 import 'package:shimmer/shimmer.dart';
 import '../show_details/movie_details.dart';
 
 class ActivityWidget extends StatefulWidget {
-  const ActivityWidget({Key? key}) : super(key: key);
+  const ActivityWidget({super.key});
 
   @override
   State<ActivityWidget> createState() => ActivityWidgetState();
@@ -33,17 +32,29 @@ class ActivityWidgetState extends State<ActivityWidget> {
       if (snapshot.exists) {
         final data = snapshot.data() ?? {};
         final wishlist = data['wishlist'] as Map<String, dynamic>? ?? {};
-        _wishlist = wishlist.entries.map((entry) {
+        final List<Map<String, dynamic>> wishlistData = [];
+
+        for (var entry in wishlist.entries) {
           final listID = entry.key;
           final listName = entry.value['name'] as String;
-          final data = entry.value['list'] as List<dynamic>;
-          return {
+          final moviesList = entry.value['list'] as List<dynamic>;
+
+          final List<Movie> movieObjects = [];
+          for (var movieId in moviesList) {
+            final movie = await tmdb.TMDBApi().getMovie(movieId);
+            movieObjects.add(movie);
+          }
+
+          wishlistData.add({
             'listName': listName,
-            'moviesList': data,
+            'moviesList': movieObjects,
             'listID': listID,
-          };
-        }).toList();
-        setState(() {});
+          });
+        }
+
+        setState(() {
+          _wishlist = wishlistData;
+        });
       }
     } catch (e) {
       print('Error fetching wishlist data: $e');
@@ -51,48 +62,48 @@ class ActivityWidgetState extends State<ActivityWidget> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_wishlist.isNotEmpty ? _wishlist[_currentPageIndex]['listName'] : 'My Wishlist'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _showEditListDialog(context),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: PageView.builder(
-          controller: _pageController,
-          itemCount: _wishlist.length,
-          onPageChanged: (index) {
-            setState(() {
-              _currentPageIndex = index;
-            });
-          },
-          itemBuilder: (context, index) {
-            return _buildWishlist(index);
-          },
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(_wishlist.isNotEmpty ? _wishlist[_currentPageIndex]['listName'] : 'My Wishlist'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _showEditListDialog(context),
         ),
+      ],
+    ),
+    body: SafeArea(
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: _wishlist.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentPageIndex = index;
+          });
+        },
+        itemBuilder: (context, index) {
+          return _buildWishlist(index);
+        },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddListDialog(context),
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
+    ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: () => _showAddListDialog(context),
+      child: const Icon(Icons.add),
+    ),
+  );
+}
 
-  Widget _buildWishlist(int index) {
-  final moviesList = _wishlist[index]['moviesList'] as List<dynamic>;
+Widget _buildWishlist(int index) {
+  final moviesList = _wishlist[index]['moviesList'] as List<Movie>;
 
   return ListView.builder(
     itemCount: moviesList.length + 1,
-    itemBuilder: (context, index) {
-      if (index == moviesList.length) {
+    itemBuilder: (context, idx) {
+      if (idx == moviesList.length) {
         return _buildAddMovieButton();
       } else {
-        final movieId = moviesList[index];
+        final movie = moviesList[idx];
         return Dismissible(
           key: UniqueKey(),
           direction: DismissDirection.endToStart,
@@ -106,139 +117,62 @@ class ActivityWidgetState extends State<ActivityWidget> {
           ),
           onDismissed: (direction) {
             setState(() {
-              _wishlist[_currentPageIndex]['moviesList'].remove(movieId);
-              removeMovieFromWishlist(_wishlist[_currentPageIndex]['listID'], movieId);
+              _wishlist[index]['moviesList'].remove(movie);
+              _removeMovieFromWishlist(_wishlist[index]['listID'], movie.id);
             });
           },
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: GestureDetector(
-              onTap: () async {
+              onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => MovieDetailsWidget(movieID: movieId),
+                    builder: (context) => MovieDetailsWidget(movieID: movie.id),
                   ),
                 );
               },
-              child: FutureBuilder<String>(
-                future: _loadPoster(movieId, retryCount: 3),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting || snapshot.connectionState == ConnectionState.none) {
-                    return Shimmer.fromColors(
-                      baseColor: Colors.black,
-                      highlightColor: Colors.black12,
-                      child: Container(
-                        width: 100,
-                        height: 150,
-                        color: Colors.black,
-                      ),
-                    );
-                  } else if (snapshot.hasError || snapshot.data == null) {
-                    return SizedBox(
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      movie.posterUrl,
                       width: 100,
                       height: 150,
-                      child: Center(
-                        child: Shimmer.fromColors(
-                          baseColor: Colors.grey[300]!,
-                          highlightColor: Colors.grey[100]!,
-                          child: Container(
-                            width: 100,
-                            height: 150,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${movie.title} (${(movie.releaseDate).substring(movie.releaseDate.length - 4)})',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          movie.genres,
+                          style: const TextStyle(
+                            fontSize: 14,
                             color: Colors.grey,
                           ),
                         ),
-                      ),
-                    );
-                  } else {
-                    return Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Image.file(
-                            File(snapshot.data!),
-                            width: 100,
-                            height: 150,
-                            fit: BoxFit.cover,
+                        Text(
+                          '${movie.length} • ${movie.voteAverage} ⭐',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            FutureBuilder<String>(
-  future: tmdb.TMDBApi().getMovieTitle(movieId),
-  builder: (context, snapshot) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return const CircularProgressIndicator();
-    } else if (snapshot.hasError) {
-      return const Text('Movie Title Error');
-    } else {
-      return FutureBuilder<String>(
-        future: _getReleaseYear(movieId), // Await _getReleaseYear here
-        builder: (context, yearSnapshot) {
-          if (yearSnapshot.connectionState == ConnectionState.waiting) {
-            return const CircularProgressIndicator();
-          } else if (yearSnapshot.hasError) {
-            return const Text('Release Year Error');
-          } else {
-            final releaseYear = yearSnapshot.data ?? '';
-            return Text(
-              '${snapshot.data} ($releaseYear)',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          }
-        },
-      );
-    }
-  },
-),
-
-                            FutureBuilder<String>(
-                              future: tmdb.TMDBApi().getMovieGenres(movieId),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const CircularProgressIndicator();
-                                } else if (snapshot.hasError) {
-                                  return const Text('Genre Error');
-                                } else {
-                                  return Text(
-                                    snapshot.data!,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                            FutureBuilder<String>(
-                              future: tmdb.TMDBApi().getMovieLength(movieId),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const CircularProgressIndicator();
-                                } else if (snapshot.hasError) {
-                                  return const Text('Length Error');
-                                } else {
-                                  return Text(
-                                    snapshot.data!,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        ),
                       ],
-                    );
-                  }
-                },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -248,23 +182,38 @@ class ActivityWidgetState extends State<ActivityWidget> {
   );
 }
 
-Future<String> _getReleaseYear(int movieId) async {
-  final releaseDate = await tmdb.TMDBApi().getMovieReleaseDate(movieId);
-  final year = releaseDate.substring(releaseDate.length - 4);
-  return year;
-}
 
-
-
-  Future<String> _loadPoster(int movieId, {int retryCount = 3}) async {
+  Future<void> _removeMovieFromWishlist(String listID, int movieId) async {
     try {
-      return await tmdb.TMDBApi().getMoviePoster(movieId);
-    } catch (e) {
-      if (retryCount > 0) {
-        return _loadPoster(movieId, retryCount: retryCount - 1);
-      } else {
-        return '';
-      }
+      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
+
+        if (userSnapshot.exists) {
+          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+
+          if (!userData.containsKey('wishlist')) {
+            userData['wishlist'] = {};
+          }
+
+          Map<String, dynamic> wishlistMap = userData['wishlist'];
+
+          if (wishlistMap.containsKey(listID)) {
+            List<dynamic> moviesList = wishlistMap[listID]['list'];
+
+            if (moviesList.contains(movieId)) {
+              moviesList.remove(movieId);
+
+              transaction.update(doc, {'wishlist': wishlistMap});
+
+              setState(() {});
+            }
+          }
+        }
+      });
+    } catch (error) {
+      print("Error removing movie from wishlist: $error");
     }
   }
 
@@ -318,7 +267,7 @@ Future<String> _getReleaseYear(int movieId) async {
               child: Container(
                 width: 100,
                 height: 150,
-                color: Colors.grey[200], // Light grey color
+                color: Colors.grey[200],
                 child: const Center(
                   child: Icon(
                     Icons.add,
@@ -354,52 +303,21 @@ Future<String> _getReleaseYear(int movieId) async {
     );
   }
 
-  Future<void> removeMovieFromWishlist(String listID, int movieId) async {
+  Future<void> _addWishlist(String listName) async {
     try {
       DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
 
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
+      final snapshot = await doc.get();
+      if (snapshot.exists && !(snapshot.data() as Map).containsKey('wishlist')) {
+        await doc.set({'wishlist': {}}, SetOptions(merge: true));
+      }
 
-        if (userSnapshot.exists) {
-          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+      final listID = listName.hashCode.toString();
+      await doc.set({'wishlist': {listID: {'name': listName, 'list': []}}}, SetOptions(merge: true));
 
-          if (!userData.containsKey('wishlist')) {
-            userData['wishlist'] = {};
-          }
-
-          Map<String, dynamic> wishlistMap = userData['wishlist'];
-
-          if (wishlistMap.containsKey(listID)) {
-            List<dynamic> moviesList = wishlistMap[listID]['list'];
-
-            if (moviesList.contains(movieId)) {
-              moviesList.remove(movieId);
-
-              transaction.update(doc, {'wishlist': wishlistMap});
-
-              setState(() {});
-            }
-          }
-        }
-      });
-    } catch (error) {
-      print("Error removing movie from wishlist: $error");
-    }
-  }
-
-  Future<void> _addWishlist(String listName) async {
-    DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
-
-    DocumentSnapshot<Object?> wishlistSnapshot = await doc.get();
-    if (wishlistSnapshot.exists && !(wishlistSnapshot.data() as Map).containsKey('wishlist')) {
-      await doc.set({'wishlist': {}}, SetOptions(merge: true));
-    }
-    Map<String, dynamic>? wishlistMap = wishlistSnapshot['wishlist'] as Map<String, dynamic>?;
-    if (wishlistMap == null || !wishlistMap.containsKey(listName.hashCode.toString())) {
-      await doc.set({'wishlist': {listName.hashCode.toString(): {'name': listName, 'list': []}}}, SetOptions(merge: true));
       await _fetchWishlistData();
-      _buildWishlist(_currentPageIndex);
+    } catch (error) {
+      print("Error adding wishlist: $error");
     }
   }
 
@@ -504,7 +422,6 @@ Future<String> _getReleaseYear(int movieId) async {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await _deleteWishlist();
-                Navigator.of(context).pop();
               },
               child: const Text('Delete'),
             ),
@@ -544,7 +461,6 @@ Future<String> _getReleaseYear(int movieId) async {
                 _pageController.jumpToPage(_currentPageIndex);
               }
             });
-             Navigator.of(context).pop();
           }
         }
       });
