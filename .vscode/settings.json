@@ -1,5 +1,6 @@
 {
     "java.configuration.updateBuildConfiguration": "interactive",
     "C_Cpp.errorSquiggles": "disabled",
-    "cmake.sourceDirectory": "E:/vixvox/linux"
+    "cmake.sourceDirectory": "E:/vixvox/linux",
+    "cmake.configureOnOpen": false
 }

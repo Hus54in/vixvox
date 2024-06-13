@@ -4,10 +4,12 @@ import 'package:vixvox/TMDBapi/media.dart';
 import 'package:vixvox/TMDBapi/movie.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
 import 'package:shimmer/shimmer.dart';
+import 'package:vixvox/TMDBapi/tvshow.dart';
+import 'package:vixvox/show_details/tvShow_details.dart';
 import '../show_details/movie_details.dart';
 
 class DiscoverWidget extends StatefulWidget {
-  const DiscoverWidget({super.key});
+  const DiscoverWidget({Key? key}) : super(key: key);
 
   @override
   State<DiscoverWidget> createState() => _DiscoverWidgetState();
@@ -40,7 +42,9 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
                     child: TextFormField(
                       controller: _searchController,
                       onChanged: _onSearchChanged,
-                      onFieldSubmitted: _performSearch,
+                      onEditingComplete: () {
+                        _performSearch(_searchController.text);
+                      },
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         labelText: 'Search Movies and TV Shows',
@@ -118,13 +122,22 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
       padding: const EdgeInsets.all(8.0),
       child: GestureDetector(
         onTap: () {
+          if (media is Movie){
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => MovieDetailsWidget(movieID: media.id ),
+              builder: (context) => MovieDetailsWidget(movieID: media.id),
             ),
           );
-        },
+        }
+        else {
+                Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TvShowDetailsWidget(tvShowId: media.id),
+            ),
+          );
+        }},
         child: Row(
           children: [
             FutureBuilder<String>(
@@ -244,8 +257,7 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
   }
 
   void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+
       if (query.isNotEmpty) {
         _searchSuggestions(query);
       } else {
@@ -254,7 +266,7 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
           _results = [];
         });
       }
-    });
+    
   }
 
   void _searchSuggestions(String query) async {
@@ -270,7 +282,8 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
       _results = results;
       _suggestions = [];
     });
-    FocusScope.of(context).unfocus();
+    _searchController.clear(); // Clear search text field after search
+    FocusScope.of(context).unfocus(); // Dismiss keyboard after search
   }
 
   Color _getRatingColor(double rating) {
@@ -287,3 +300,4 @@ class _DiscoverWidgetState extends State<DiscoverWidget> {
     }
   }
 }
+

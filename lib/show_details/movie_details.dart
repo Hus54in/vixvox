@@ -11,6 +11,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:vixvox/pages/summary.dart';
+import 'package:vixvox/show_details/discussion/discussion.dart';
 
 class MovieDetailsWidget extends StatefulWidget {
   const MovieDetailsWidget({super.key, required this.movieID});
@@ -22,17 +23,16 @@ class MovieDetailsWidget extends StatefulWidget {
 }
 
 class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
-  late Map<String, dynamic> _items = {'0': {'name': 'My List', 'list': [1234, 5678]}};
-  late bool addButton = false;
-  late Movie _movie;
-  late String _selectedList = '0';
-  late PaletteGenerator paletteGenerator;
-  late Color dominantColor = Colors.black;
-  late Color darkVibrantColor = Colors.black;
-  late Map<String, dynamic> _watchProviders = {};
+  Map<String, dynamic> _items = {'0': {'name': 'My List', 'list': [1234, 5678]}};
+  bool addButton = false;
+  Movie? _movie;
+  String _selectedList = '0';
+  Color dominantColor = Colors.black;
+  Color darkVibrantColor = Colors.black;
+  Map<String, dynamic> _watchProviders = {};
   List<Locale> systemLocales = [];
   String? _countryCode;
-
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -45,17 +45,44 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
 
   Future<void> _fetchMovieDetails() async {
     _movie = await TMDBApi().getMovie(widget.movieID);
-    paletteGenerator = await PaletteGenerator.fromImageProvider(NetworkImage(_movie.posterUrl),);
+    PaletteGenerator paletteGenerator = PaletteGenerator.fromColors([PaletteColor(Colors.blueGrey, 111)]);
+    if (_movie!.posterUrl != null && _movie!.posterUrl.isNotEmpty) {
+      paletteGenerator = await PaletteGenerator.fromImageProvider(NetworkImage(_movie!.posterUrl!));
+    }
     setState(() {
       dominantColor = paletteGenerator.dominantColor?.color ?? Colors.black;
       darkVibrantColor = paletteGenerator.darkVibrantColor?.color ?? dominantColor;
     });
     _watchProviders = await TMDBApi().getMovieWatchProviders(widget.movieID);
+    setState(() {
+      _watchProviders = _watchProviders;
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return DefaultTabController(
+      length: 2, // Number of tabs
+      child: Scaffold(
+      appBar: AppBar(
+        backgroundColor: dominantColor, 
+        title: Text(
+          _movie?.title ?? '',
+          style: const TextStyle(fontSize: 20),
+        ),
+        leading: BackButton(color: Colors.white),
+        bottom: const TabBar(
+          tabs: [
+            Tab(text: 'Details'),
+            Tab(text: 'Discussion'),
+          ],
+        ),
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -65,127 +92,117 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return <Widget>[
-              SliverAppBar(
-                backgroundColor: Colors.transparent,
-                pinned: false,
-                floating: true,
-                snap: true,
-                flexibleSpace: LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    return FlexibleSpaceBar(
-                      title: Text(
-                        _movie.title,
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ];
-          },
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: _movie.posterUrl.isNotEmpty
-                                  ? SizedBox(
-                                      width: 150,
-                                      height: 200,
-                                      child: Image.network(_movie.posterUrl),
-                                    )
-                                  : Shimmer.fromColors(
-                                      baseColor: Colors.grey[300]!,
-                                      highlightColor: Colors.grey[100]!,
-                                      child: Container(
-                                        width: 150,
-                                        height: 200,
-                                        color: Colors.white,
-                                      ),
+        child: TabBarView(
+          children: [
+            details(), DiscussionPage(movieID: widget.movieID)
+        ] ))));
+  
+     } 
+
+      
+
+ Widget details()  {
+  return SingleChildScrollView(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: _movie?.posterUrl.isNotEmpty ?? false
+                                          ? SizedBox(
+                                              width: 150,
+                                              height: 200,
+                                              child: Image.network(_movie!.posterUrl),
+                                            )
+                                          : Shimmer.fromColors(
+                                              baseColor: Colors.grey[300]!,
+                                              highlightColor: Colors.grey[100]!,
+                                              child: Container(
+                                                width: 150,
+                                                height: 200,
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                     ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _movie.length,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _movie.releaseDate,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _movie.genres,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Container(
-                          width: 100,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: _getRatingColor(_movie.voteAverage),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${_movie.voteAverage.toStringAsFixed(1)}/10.0',
-                              style: const TextStyle(color: Colors.white),
-                            ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Text(
+                                      _movie?.length ?? '',
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Text(
+                                      _movie?.releaseDate ?? '',
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Text(
+                                      _movie?.genres ?? '',
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      Row(
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Container(
+                                  width: 100,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    color: _getRatingColor(_movie?.voteAverage ?? 0.0),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${_movie?.voteAverage?.toStringAsFixed(1)}/10.0',
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Row(
                         children: [
+                          
                           Padding(
                             padding: const EdgeInsets.all(5),
                             child: IconButton(
                               iconSize: 40,
                               icon: const Icon(Icons.play_arrow),
                               onPressed: () async {
-                                if (_movie.trailerUrl != null && _movie.trailerUrl!.isNotEmpty) {
+                                if (_movie?.trailerUrl != null && _movie!.trailerUrl!.isNotEmpty) {
                                   final bool nativeAppLaunchSucceeded = await launch(
-                                    _movie.trailerUrl!,
+                                    _movie!.trailerUrl!,
                                     universalLinksOnly: true,
                                     forceSafariVC: false,
                                     forceWebView: false,
                                   );
 
                                   if (!nativeAppLaunchSucceeded) {
-                                    await launch(_movie.trailerUrl!, forceSafariVC: true);
+                                    await launch(_movie!.trailerUrl!, forceSafariVC: true);
                                   }
                                 }
                               },
@@ -321,16 +338,13 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                       const Text(
                         'Summary:',
                         style: TextStyle(color: Colors.white, fontSize: 20),
-                      ),
-                      const SizedBox(height: 8),
+                      ),                      const SizedBox(height: 8),
                       RichText(
                         text: TextSpan(
                           style: const TextStyle(color: Colors.white),
                           children: <TextSpan>[
                             TextSpan(
-                              text: _movie.summary.length <= 200
-                                  ? _movie.summary
-                                  : '${_movie.summary.substring(0, 200)}...',
+                              text: '${_movie!.summary.substring(0,200)}...',
                               style: const TextStyle(color: Colors.white),
                             ),
                             TextSpan(
@@ -356,19 +370,8 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                   padding: const EdgeInsets.all(8),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: FutureBuilder<List<Cast>>(
-                      future: TMDBApi().getMovie(widget.movieID).then((movie) => movie.cast),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const CircularProgressIndicator();
-                        } else if (snapshot.hasError) {
-                          return Text('Error: ${snapshot.error}');
-                        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return const Text('No cast available');
-                        } else {
-                          List<Cast> credits = snapshot.data!;
-                          return Row(
-                            children: credits.map((credit) {
+                    child: Row(
+                            children: _movie!.cast.map((credit) {
                               return Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: Column(
@@ -390,12 +393,11 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                                 ),
                               );
                             }).toList(),
-                          );
-                        }
-                      },
+                          )
+                       
                     ),
                   ),
-                ),
+                
                 Column(
                   children: [
                     const Text(
@@ -410,13 +412,10 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
+          );
+ }
 
-  Future<void> _buildDropdownItems() async {
+Future<void> _buildDropdownItems() async {
     DocumentReference doc = FirebaseFirestore.instance
         .collection('users')
         .doc(FirebaseAuth.instance.currentUser!.uid);
@@ -433,53 +432,51 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget> {
 
   List<Widget> _buildProviderWidgets() {
     List<Widget> widgets = [];
-  
+
     _watchProviders.forEach((key, value) {
       if (key == _countryCode) {
         final providers = value as Map<String, dynamic>;
-        providers.forEach((key, value) { 
-          if (key == 'flatrate'){
-            final Provider = value as List<dynamic>;
-          
-        for (var channel in Provider) {
-          final logoPath = channel['logo_path'];
-          final providerName = channel['provider_name'];
-          if (logoPath != null && providerName != null) {
-            widgets.add(
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12.0),
-                        child: Image.network(
-                          'https://image.tmdb.org/t/p/w92$logoPath',
-                          width: 70,
-                          height: 70,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+        providers.forEach((key, value) {
+          if (key == 'flatrate') {
+            final providerList = value as List<dynamic>;
+            for (var provider in providerList) {
+              final logoPath = provider['logo_path'];
+              final providerName = provider['provider_name'];
+              if (logoPath != null && providerName != null) {
+                widgets.add(
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12.0),
+                            child: Image.network(
+                              'https://image.tmdb.org/t/p/w92$logoPath',
+                              width: 70,
+                              height: 70,
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                            ),
+                          ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            providerName,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        providerName,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
+                  ),
+                );
+              }
+            }
           }
-        }
-        }
-      });
-    }
-  });
-
+        });
+      }
+    });
 
     return widgets;
   }

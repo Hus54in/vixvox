@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:vixvox/pages/settings_page_model.dart'; // Added for CachedNetworkImage
+import 'package:vixvox/pages/profile/settings_page_model.dart'; // Added for CachedNetworkImage
 
 class SettingsPageWidget extends StatefulWidget {
   const SettingsPageWidget({super.key});

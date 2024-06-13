@@ -6,7 +6,7 @@ import 'package:vixvox/firebase_options.dart';
 import 'package:vixvox/login/login.dart';
 import 'package:vixvox/pages/discover.dart';
 import 'package:vixvox/pages/home.dart';
-import 'package:vixvox/pages/settings_page.dart';
+import 'package:vixvox/pages/profile/settings_page.dart';
 import 'package:vixvox/create/create.dart';
 import 'pages/activity.dart';
 

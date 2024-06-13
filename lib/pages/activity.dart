@@ -8,7 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../show_details/movie_details.dart';
 
 class ActivityWidget extends StatefulWidget {
-  const ActivityWidget({super.key});
+  const ActivityWidget({Key? key}) : super(key: key);
 
   @override
   State<ActivityWidget> createState() => ActivityWidgetState();
@@ -28,7 +28,10 @@ class ActivityWidgetState extends State<ActivityWidget> {
 
   Future<void> _fetchWishlistData() async {
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .get();
       if (snapshot.exists) {
         final data = snapshot.data() ?? {};
         final wishlist = data['wishlist'] as Map<String, dynamic>? ?? {};
@@ -62,39 +65,71 @@ class ActivityWidgetState extends State<ActivityWidget> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: Text(_wishlist.isNotEmpty ? _wishlist[_currentPageIndex]['listName'] : 'My Wishlist'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: () => _showEditListDialog(context),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      child: PageView.builder(
-        controller: _pageController,
-        itemCount: _wishlist.length,
-        onPageChanged: (index) {
-          setState(() {
-            _currentPageIndex = index;
-          });
-        },
-        itemBuilder: (context, index) {
-          return _buildWishlist(index);
-        },
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_wishlist.isNotEmpty
+            ? _wishlist[_currentPageIndex]['listName']
+            : 'My Wishlist'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _showEditListDialog(context),
+          ),
+        ],
       ),
-    ),
-    floatingActionButton: FloatingActionButton(
-      onPressed: () => _showAddListDialog(context),
-      child: const Icon(Icons.add),
-    ),
-  );
-}
+      body: GestureDetector(
+        // GestureDetector to handle horizontal swipes
+        onHorizontalDragUpdate: (details) {
+          if (details.delta.dx > 0) {
+            // swiped right
+            if (_currentPageIndex > 0) {
+              setState(() {
+                _currentPageIndex--;
+              });
+              _pageController.animateToPage(
+                _currentPageIndex,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          } else if (details.delta.dx < 0) {
+            // swiped left
+            if (_currentPageIndex < _wishlist.length - 1) {
+              setState(() {
+                _currentPageIndex++;
+              });
+              _pageController.animateToPage(
+                _currentPageIndex,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          }
+        },
+        child: SafeArea(
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: _wishlist.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return _buildWishlist(index);
+            },
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddListDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
 
-Widget _buildWishlist(int index) {
+ Widget _buildWishlist(int index) {
   final moviesList = _wishlist[index]['moviesList'] as List<Movie>;
 
   return ListView.builder(
@@ -118,80 +153,118 @@ Widget _buildWishlist(int index) {
           onDismissed: (direction) {
             setState(() {
               _wishlist[index]['moviesList'].remove(movie);
-              _removeMovieFromWishlist(_wishlist[index]['listID'], movie.id);
+              _removeMovieFromWishlist(
+                  _wishlist[index]['listID'], movie.id);
             });
           },
-          child: Padding(
+          child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          MovieDetailsWidget(movieID: movie.id),
+                    ),
+                  );
+                },child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MovieDetailsWidget(movieID: movie.id),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    movie.posterUrl,
+                    width: 100,
+                    height: 150,
+                    fit: BoxFit.cover,
                   ),
-                );
-              },
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      movie.posterUrl,
-                      width: 100,
-                      height: 150,
-                      fit: BoxFit.cover,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${movie.title} (${(movie.releaseDate).substring(movie.releaseDate.length - 4)})',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        movie.genres,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        '${movie.length} • ${movie.voteAverage} ⭐',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showEditMovieDialog(context, movie);
+                    } 
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'Write Review',
+                      child: ListTile(
+                        leading: Icon(Icons.edit),
+                        title: Text('Write Review'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${movie.title} (${(movie.releaseDate).substring(movie.releaseDate.length - 4)})',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          movie.genres,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Text(
-                          '${movie.length} • ${movie.voteAverage} ⭐',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                    const PopupMenuItem<String>(
+                      value: 'Rate',
+                      child: ListTile(
+                        leading: Icon(Icons.star),
+                        title: Text('Rate'),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                     const PopupMenuItem<String>(
+                      value: 'Remove',
+                      child: ListTile(
+                        leading: Icon(Icons.delete),
+                        title: Text('Remove'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+          )
         );
       }
     },
   );
 }
 
-
-  Future<void> _removeMovieFromWishlist(String listID, int movieId) async {
+Future<void> _showEditMovieDialog(BuildContext context, Movie movie) async {
+  // Implement your edit movie dialog here
+}
+  Future<void> _removeMovieFromWishlist(
+      String listID, int movieId) async {
     try {
-      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+      DocumentReference doc = FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid);
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
+        DocumentSnapshot<Object?> userSnapshot =
+            await transaction.get(doc);
 
         if (userSnapshot.exists) {
-          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+          Map<String, dynamic> userData =
+              userSnapshot.data() as Map<String, dynamic>;
 
           if (!userData.containsKey('wishlist')) {
             userData['wishlist'] = {};
@@ -228,7 +301,8 @@ Widget _buildWishlist(int index) {
           title: const Text('Add New Wishlist'),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(hintText: 'Enter Wishlist Name'),
+            decoration:
+                const InputDecoration(hintText: 'Enter Wishlist Name'),
           ),
           actions: <Widget>[
             TextButton(
@@ -304,6 +378,7 @@ Widget _buildWishlist(int index) {
   }
 
   Future<void> _addWishlist(String listName) async {
+    
     try {
       DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
 
@@ -320,7 +395,110 @@ Widget _buildWishlist(int index) {
       print("Error adding wishlist: $error");
     }
   }
+  Future<void> _editWishlist(String newListName) async {
+    try {
+      String listID = _wishlist[_currentPageIndex]['listID'];
 
+      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
+
+        if (userSnapshot.exists) {
+          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+
+          if (!userData.containsKey('wishlist')) {
+            userData['wishlist'] = {};
+          }
+
+          Map<String, dynamic> wishlistMap = userData['wishlist'];
+
+          if (wishlistMap.containsKey(listID)) {
+            wishlistMap[listID]['name'] = newListName;
+
+            transaction.update(doc, {'wishlist': wishlistMap});
+
+            setState(() {
+              _wishlist[_currentPageIndex]['listName'] = newListName;
+            });
+          }
+        }
+      });
+    } catch (error) {
+      print("Error editing wishlist: $error");
+    }
+  }
+  Future<void> _deleteWishlist() async {
+    try {
+      String listID = _wishlist[_currentPageIndex]['listID'];
+
+      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
+
+        if (userSnapshot.exists) {
+          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+
+          if (!userData.containsKey('wishlist')) {
+            userData['wishlist'] = {};
+          }
+
+          Map<String, dynamic> wishlistMap = userData['wishlist'];
+
+          if (wishlistMap.containsKey(listID)) {
+            wishlistMap.remove(listID);
+
+            transaction.update(doc, {'wishlist': wishlistMap});
+
+            setState(() {
+              _wishlist.removeAt(_currentPageIndex);
+              if (_currentPageIndex >= _wishlist.length) {
+                _currentPageIndex--;
+                _pageController.jumpToPage(_currentPageIndex);
+              }
+            });
+          }
+        }
+      });
+    } catch (error) {
+      print("Error deleting wishlist: $error");
+    }
+  }
+  
+  Future<void> _confirmDeleteList(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Delete'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Are you sure you want to delete this wishlist?'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _deleteWishlist();
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
   Future<void> _showEditListDialog(BuildContext context) async {
     TextEditingController controller = TextEditingController(text: _wishlist[_currentPageIndex]['listName']);
 
@@ -363,109 +541,8 @@ Widget _buildWishlist(int index) {
     );
   }
 
-  Future<void> _editWishlist(String newListName) async {
-    try {
-      String listID = _wishlist[_currentPageIndex]['listID'];
 
-      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
 
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
 
-        if (userSnapshot.exists) {
-          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
-
-          if (!userData.containsKey('wishlist')) {
-            userData['wishlist'] = {};
-          }
-
-          Map<String, dynamic> wishlistMap = userData['wishlist'];
-
-          if (wishlistMap.containsKey(listID)) {
-            wishlistMap[listID]['name'] = newListName;
-
-            transaction.update(doc, {'wishlist': wishlistMap});
-
-            setState(() {
-              _wishlist[_currentPageIndex]['listName'] = newListName;
-            });
-          }
-        }
-      });
-    } catch (error) {
-      print("Error editing wishlist: $error");
-    }
-  }
-
-  Future<void> _confirmDeleteList(BuildContext context) async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Are you sure you want to delete this wishlist?'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _deleteWishlist();
-              },
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _deleteWishlist() async {
-    try {
-      String listID = _wishlist[_currentPageIndex]['listID'];
-
-      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
-
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot<Object?> userSnapshot = await transaction.get(doc);
-
-        if (userSnapshot.exists) {
-          Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
-
-          if (!userData.containsKey('wishlist')) {
-            userData['wishlist'] = {};
-          }
-
-          Map<String, dynamic> wishlistMap = userData['wishlist'];
-
-          if (wishlistMap.containsKey(listID)) {
-            wishlistMap.remove(listID);
-
-            transaction.update(doc, {'wishlist': wishlistMap});
-
-            setState(() {
-              _wishlist.removeAt(_currentPageIndex);
-              if (_currentPageIndex >= _wishlist.length) {
-                _currentPageIndex--;
-                _pageController.jumpToPage(_currentPageIndex);
-              }
-            });
-          }
-        }
-      });
-    } catch (error) {
-      print("Error deleting wishlist: $error");
-    }
-  }
 }
+
