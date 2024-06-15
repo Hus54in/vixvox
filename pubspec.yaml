@@ -57,6 +57,11 @@ dependencies:
   dropdown_button2: ^2.3.9
   syncfusion_flutter_sliders: ^25.1.42
   intl: ^0.19.0
+  iconic_button: ^1.4.0
+  interactive_slider: ^0.2.2
+  image_picker: ^1.1.2
+  firebase_storage: ^11.7.7
+  sidebar_drawer: ^0.0.1+2
   
 dev_dependencies:
   flutter_test:

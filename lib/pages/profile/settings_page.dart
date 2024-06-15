@@ -1,34 +1,52 @@
+import 'dart:typed_data';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:vixvox/pages/profile/settings_page_model.dart'; // Added for CachedNetworkImage
+import 'package:image_picker/image_picker.dart';
 
 class SettingsPageWidget extends StatefulWidget {
-  const SettingsPageWidget({super.key});
+  const SettingsPageWidget({Key? key}) : super(key: key);
 
   @override
   State<SettingsPageWidget> createState() => _SettingsPageWidgetState();
 }
 
-class _SettingsPageWidgetState extends State<SettingsPageWidget>
-    with TickerProviderStateMixin {
-  late SettingsPageModel _model;
-
+class _SettingsPageWidgetState extends State<SettingsPageWidget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // AnimationsMap removed as it's related to Flutter Flow
-
-  @override
-  void initState() {
-    super.initState();
-    _model = createModel(context, () => SettingsPageModel());
+  void selectImage() async {
+    final ImagePicker _picker = ImagePicker();
+    final XFile? _file = await _picker.pickImage(source: ImageSource.gallery);
+    if (_file != null) {
+      final img = await _file.readAsBytes();
+      final storageref = FirebaseStorage.instance
+          .ref()
+          .child('profile/${FirebaseAuth.instance.currentUser!.uid}.jpg');
+      await storageref.putData(img);
+      setState(() {}); // Refresh to show the new image
+    }
   }
 
-  @override
-  void dispose() {
-    _model.dispose();
+  Future<String?> getImageUrl() async {
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile/${FirebaseAuth.instance.currentUser!.uid}.jpg');
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print('Error getting image URL: $e');
+      return null;
+    }
+  }
 
-    super.dispose();
+  void _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      print('Error signing out: $e');
+    }
   }
 
   @override
@@ -36,367 +54,100 @@ class _SettingsPageWidgetState extends State<SettingsPageWidget>
     final user = FirebaseAuth.instance.currentUser!;
 
     return GestureDetector(
-      onTap: () => _model.unfocusNode.canRequestFocus
-          ? FocusScope.of(context).requestFocus(_model.unfocusNode)
-          : FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: const Color(0xFFF1F4F8),
-        body: Column(
-          mainAxisSize: MainAxisSize.max,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 200,
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 140,
-                    decoration: const BoxDecoration(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: Colors.black,
+          endDrawer: Drawer(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: <Widget>[
+                const DrawerHeader(
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                  ),
+                  child: Text(
+                    'Menu',
+                    style: TextStyle(
                       color: Colors.white,
-                      image: DecorationImage(
-                        fit: BoxFit.cover,
-                        image: CachedNetworkImageProvider(
-                          'https://images.unsplash.com/photo-1434394354979-a235cd36269d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MTJ8fG1vdW50YWluc3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=900&q=60',
-                        ),
-                      ),
+                      fontSize: 24,
                     ),
                   ),
-                  Align(
-                    alignment: const AlignmentDirectional(-1, 1),
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(24, 0, 0, 16),
-                      child: Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          color: const Color(0x66249689),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF39D2C0),
-                            width: 2,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(50),
-                            child: Image.network(
-                              'https://images.unsplash.com/photo-1489980557514-251d61e3eeb6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OTZ8fHByb2ZpbGV8ZW58MHx8MHx8&auto=format&fit=crop&w=900&q=60',
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Logout'),
+                  onTap: () {
+                    _signOut();
+                    Navigator.pop(context); // Close the drawer
+                  },
+                ),
+              ],
+            ),
+          ),
+          body: Row(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  FutureBuilder<String?>(
+                    future: getImageUrl(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (snapshot.hasError) {
+                        return const Center(child: Text('Error loading image'));
+                      } else if (snapshot.hasData) {
+                        return CircleAvatar(
+                          radius: 35,
+                          backgroundImage: CachedNetworkImageProvider(snapshot.data!),
+                        );
+                      } else {
+                        return CircleAvatar(
+                          radius: 35,
+                          backgroundImage: NetworkImage(
+                              'https://avatar.iran.liara.run/username?username=${user.displayName}'),
+                        );
+                      }
+                    },
+                  ),
+                  Positioned(
+                    bottom: -13,
+                    left: 60,
+                    child: IconButton(
+                      onPressed: selectImage,
+                      icon: const Icon(Icons.edit),
+                      iconSize: 30,
+                      color: Colors.black,
                     ),
                   ),
                 ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 0, 0, 0),
-              child: Text(
-                user.displayName ?? "User Name Not found",
-                style: const TextStyle(
-                  fontFamily: 'Urbanist',
-                  color: Color(0xFF101213),
-                  fontSize: 32,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Padding(
-  padding: const EdgeInsetsDirectional.fromSTEB(24, 4, 0, 16),
-  child: Text(
-    user.email!,
-    style: const TextStyle(
-          fontFamily: 'Plus Jakarta Sans',
-          color: Color(0xFF57636C),
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-  ),
-),
-            const Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(24, 4, 0, 0),
-              child: Text(
-                'Your Account',
-                style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      color: Color(0xFF57636C),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
-              child: Container(
-                width: double.infinity,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 3,
-                      color: Color(0x33000000),
-                      offset: Offset(0, 1),
-                    )
-                  ],
-                  borderRadius: BorderRadius.circular(8),
-                  shape: BoxShape.rectangle,
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Icon(
-                        Icons.account_circle_outlined,
-                        color: Color(0xFF57636C),
-                        size: 24,
-                      ),
-                      Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(12, 0, 0, 0),
-                        child: Text(
-                          'Edit Profile',
-                          style:
-                              TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: Color(0xFF57636C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Align(
-                          alignment: AlignmentDirectional(0.9, 0),
-                          child: Icon(
-                            Icons.arrow_forward_ios,
-                            color: Color(0xFF57636C),
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
+              const SizedBox(width: 20), // Add space between avatar and user name
+              Expanded(
+                child: Text(
+                  user.displayName ?? "User Name Not Found",
+                  style: const TextStyle(
+                    fontFamily: 'Urbanist',
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
-              child: Container(
-                width: double.infinity,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 3,
-                      color: Color(0x33000000),
-                      offset: Offset(0, 1),
-                    )
-                  ],
-                  borderRadius: BorderRadius.circular(8),
-                  shape: BoxShape.rectangle,
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Icon(
-                        Icons.notifications_none,
-                        color: Color(0xFF57636C),
-                        size: 24,
-                      ),
-                      Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(12, 0, 0, 0),
-                        child: Text(
-                          'Notification Settings',
-                          style:
-                              TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: Color(0xFF57636C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Align(
-                          alignment: AlignmentDirectional(0.9, 0),
-                          child: Icon(
-                            Icons.arrow_forward_ios,
-                            color: Color(0xFF57636C),
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              IconButton(
+                onPressed: () {
+                  scaffoldKey.currentState!.openEndDrawer();
+                },
+                icon: const Icon(Icons.menu, color: Colors.white),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(24, 16, 0, 0),
-              child: Text(
-                'App Settings',
-                style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      color: Color(0xFF57636C),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
-              child: Container(
-                width: double.infinity,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 3,
-                      color: Color(0x33000000),
-                      offset: Offset(0, 1),
-                    )
-                  ],
-                  borderRadius: BorderRadius.circular(8),
-                  shape: BoxShape.rectangle,
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Icon(
-                        Icons.help_outline_rounded,
-                        color: Color(0xFF57636C),
-                        size: 24,
-                      ),
-                      Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(12, 0, 0, 0),
-                        child: Text(
-                          'Support',
-                          style:
-                              TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: Color(0xFF57636C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Align(
-                          alignment: AlignmentDirectional(0.9, 0),
-                          child: Icon(
-                            Icons.arrow_forward_ios,
-                            color: Color(0xFF57636C),
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
-              child: Container(
-                width: double.infinity,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 3,
-                      color: Color(0x33000000),
-                      offset: Offset(0, 1),
-                    )
-                  ],
-                  borderRadius: BorderRadius.circular(8),
-                  shape: BoxShape.rectangle,
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Icon(
-                        Icons.privacy_tip_rounded,
-                        color: Color(0xFF57636C),
-                        size: 24,
-                      ),
-                      Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(12, 0, 0, 0),
-                        child: Text(
-                          'Terms of Service',
-                          style:
-                              TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: Color(0xFF57636C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Align(
-                          alignment: AlignmentDirectional(0.9, 0),
-                          child: Icon(
-                            Icons.arrow_forward_ios,
-                            color: Color(0xFF57636C),
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-  padding: const EdgeInsets.only(top: 16.0),
-  child: ElevatedButton(
-    onPressed: () => FirebaseAuth.instance.signOut(),
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFFF1F4F8),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-      side: const BorderSide(color: Colors.transparent, width: 2),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(38),
-      ),
-    ),
-    child: const Text(
-      'Log Out',
-      style: TextStyle(
-        fontFamily: 'Plus Jakarta Sans',
-        color: Color(0xFF101213),
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      ),
-    ),
-  ),
-),
-
-          ],
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  
-  SettingsPageModel createModel(BuildContext context, SettingsPageModel Function() param1) {
-    // Add your code logic here
-    return SettingsPageModel();
   }
 }

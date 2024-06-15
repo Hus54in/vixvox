@@ -1,20 +1,24 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vixvox/show_details/discussion/commentItem.dart';
 
 class CommentsWidget extends StatefulWidget {
   final int movieID;
-
-  const CommentsWidget({Key? key, required this.movieID}) : super(key: key);
+  final Function(DocumentReference) onReply; // Change callback to pass DocumentReference
+  final Color color;
+  const CommentsWidget({Key? key, required this.movieID, required this.onReply, required this.color}) : super(key: key);
 
   @override
   _CommentsWidgetState createState() => _CommentsWidgetState();
 }
 
 class _CommentsWidgetState extends State<CommentsWidget> {
-  late Query<Map<String, dynamic>> _commentsQuery; // Declare query variable
-  DocumentSnapshot? _lastDocument; // Track the last document for pagination
-  final ScrollController _scrollController = ScrollController(); // Scroll controller
-  List<DocumentSnapshot> _comments = []; // List to hold all comments
+  late Query<Map<String, dynamic>> _commentsQuery;
+  DocumentSnapshot? _lastDocument;
+  final ScrollController _scrollController = ScrollController();
+  List<DocumentSnapshot> _comments = [];
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -24,12 +28,9 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         .doc(widget.movieID.toString())
         .collection('comments')
         .orderBy('dateCreated', descending: true)
-        .limit(15); // Initial query for first 15 comments
+        .limit(15);
 
-    // Attach listener to scroll controller
     _scrollController.addListener(_scrollListener);
-
-    // Call method to load comments initially
     loadComments();
   }
 
@@ -42,137 +43,75 @@ class _CommentsWidgetState extends State<CommentsWidget> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Handle null snapshot or empty data
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(child: Text('No comments yet.'));
         }
 
-        // Extract new comments from snapshot
         final newComments = snapshot.data!.docs;
+        // Avoid duplicate comments
+        if (_comments.isEmpty) {
+          _comments = newComments;
+        }
 
-        // Update _lastDocument for pagination
-        _lastDocument = newComments.isNotEmpty ? newComments[newComments.length - 1] : null;
-
-        return ListView.builder(
-          controller: _scrollController, // Assign scroll controller to ListView
+        return Padding (padding:const EdgeInsets.only( top: 12.0, left: 8, right: 4), child: ListView.builder(
+          controller: _scrollController,
           itemCount: _comments.length,
           itemBuilder: (context, index) {
             final comment = _comments[index];
-            final userID = comment['userID'];
-
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('users').doc(userID).get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return ListTile(
-                    title: const Text('Loading...'),
-                    subtitle: Text(comment['text']),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return ListTile(
-                    title: Text('Error: ${snapshot.error}'),
-                    subtitle: Text(comment['text']),
-                  );
-                }
-
-                final userData = snapshot.data!.data() as Map<String, dynamic>;
-                final userName = userData['displayName'].toString();
-                
-
-return Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Row(
-      children: [
-        Expanded(
-          child: Text(
-            userName,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
-    ),
-    const SizedBox(height: 4),
-    Text(
-      comment['text'],
-      style: const TextStyle(fontSize: 14),
-    ),
-    const SizedBox(height: 8),
-    Row(
-      children: [
-        TextButton.icon(
-          icon: const Icon(Icons.favorite_border),
-          label: const Text('Like'),
-          onPressed: () {
-            // Handle like button press
-          },
-        ),
-        TextButton.icon(
-          icon: const Icon(Icons.reply),
-          label: const Text('Reply'),
-          onPressed: () {
-            // Handle reply button press
-          },
-        ),
-       
-         IconButton(
-              icon: const Icon(Icons.more_horiz),
-              onPressed: () {
-                // Handle options button press
-              },
-            ),
-
-    const Divider(), // Optional: Add a divider between comments for visual separation
-  ],
-    )]
-
- 
-);
-
-
-              },
+            return  CommentItem(
+              comment: comment,
+              movieID: widget.movieID, color: widget.color,
+              onReply: (commentRef) => widget.onReply(commentRef), // Use the callback to handle reply
             );
           },
-        );
+        ));
       },
     );
   }
 
   void _scrollListener() {
-    // Check if the user has scrolled to the end of the list
-    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
-      loadMoreComments();
+    if (_scrollController.position.atEdge) {
+      if (_scrollController.position.pixels != 0) {
+        loadMoreComments();
+      }
     }
   }
 
-  void loadComments() async {
-    final snapshot = await _commentsQuery.get();
-    final comments = snapshot.docs;
-
-    setState(() {
-      _comments.addAll(comments);
+  void loadComments() {
+    _commentsQuery.get().then((snapshot) {
+      setState(() {
+        _comments = snapshot.docs;
+        _lastDocument = _comments.isNotEmpty ? _comments.last : null;
+      });
+    }).catchError((error) {
+      print('Failed to load comments: $error');
     });
   }
 
-  void loadMoreComments() async {
-    if (_lastDocument != null) {
-      // Construct a new query starting after the last document
-      final nextQuery = _commentsQuery.startAfterDocument(_lastDocument!).limit(15);
+  void loadMoreComments() {
+    if (_isLoadingMore || _lastDocument == null) return;
 
-      final snapshot = await nextQuery.get();
-      final newComments = snapshot.docs;
+    setState(() {
+      _isLoadingMore = true;
+    });
 
+    _commentsQuery.startAfterDocument(_lastDocument!).get().then((snapshot) {
       setState(() {
-        _comments.addAll(newComments);
-        _lastDocument = newComments.isNotEmpty ? newComments[newComments.length - 1] : null;
+        _comments.addAll(snapshot.docs);
+        _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+        _isLoadingMore = false;
       });
-    }
+    }).catchError((error) {
+      print('Failed to load more comments: $error');
+      setState(() {
+        _isLoadingMore = false;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _scrollController.dispose(); // Dispose the scroll controller
+    _scrollController.dispose();
     super.dispose();
   }
 }
