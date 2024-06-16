@@ -12,6 +12,7 @@ import 'package:vixvox/TMDBapi/tmdb.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:vixvox/TMDBapi/tvshow.dart';
 import 'package:vixvox/pages/summary.dart';
+import 'package:vixvox/show_details/discussion/discussion.dart';
 
 class TvShowDetailsWidget extends StatefulWidget {
   const TvShowDetailsWidget({super.key, required this.tvShowId});
@@ -32,6 +33,8 @@ class _TvShowDetailsWidgetState extends State<TvShowDetailsWidget> {
   Map<String, dynamic> _watchProviders = {};
   List<Locale> systemLocales = [];
   String? _countryCode;
+  bool _isLoading = true;
+    PaletteGenerator paletteGenerator = PaletteGenerator.fromColors([PaletteColor(Colors.blueGrey, 111)]);
 
   @override
   void initState() {
@@ -44,7 +47,6 @@ class _TvShowDetailsWidgetState extends State<TvShowDetailsWidget> {
 
   Future<void> _fetchMovieDetails() async {
     _tvshow = await TMDBApi().getTVShow(widget.tvShowId);
-    PaletteGenerator paletteGenerator = PaletteGenerator.fromColors([PaletteColor(Colors.blueGrey, 111)]);
 if (_tvshow!.posterUrl != null && _tvshow!.posterUrl.isNotEmpty) {
    paletteGenerator = await PaletteGenerator.fromImageProvider(NetworkImage(_tvshow!.posterUrl!));
 }  setState(() {
@@ -54,43 +56,73 @@ if (_tvshow!.posterUrl != null && _tvshow!.posterUrl.isNotEmpty) {
     _watchProviders = await TMDBApi().getMovieWatchProviders(widget.tvShowId);
     setState(() {
       _watchProviders = _watchProviders;
+      _isLoading = false;
+
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [dominantColor, darkVibrantColor, Colors.black],
-            stops: const [0.0, 0.0, 0.7],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+
+
+ if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return DefaultTabController(
+      length: 2, // Number of tabs
+      child: Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [dominantColor, darkVibrantColor, Colors.black],
+              stops: const [0.0, 0.5, 0.7],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
           ),
-        ),
-        child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return <Widget>[
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
               SliverAppBar(
                 backgroundColor: Colors.transparent,
                 pinned: false,
-                floating: true,
-                snap: true,
-                flexibleSpace: LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    return FlexibleSpaceBar(
-                      title: Text(
-                        _tvshow?.title ?? '',
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    );
-                  },
+                bottom:  TabBar(
+                  dividerColor: Colors.transparent,
+                    indicatorColor: paletteGenerator.lightVibrantColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? Colors.white,
+                    tabs: const [
+                      Tab(text: 'Details'),
+                      Tab(text: 'Discussion'),
+                    ],
+                  ),
+               
+                  title: Text(
+                    _tvshow?.title ?? '',
+                    style: const TextStyle(fontSize: 20),            
+                  ),
                 ),
-              ),
-            ];
-          },
-          body: SingleChildScrollView(
+              
+    
+            ],
+            body: TabBarView(
+              children: [
+                details(),
+                DiscussionPage(
+                  tvShowId: widget.tvShowId,
+                  color: paletteGenerator.lightVibrantColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? Colors.red,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+
+
+
+  Widget details() {
+   return  SingleChildScrollView(
             child: Column(
               children: [
                 Padding(
@@ -398,9 +430,7 @@ if (_tvshow!.posterUrl != null && _tvshow!.posterUrl.isNotEmpty) {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
+
     );
   }
 

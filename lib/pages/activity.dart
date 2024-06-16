@@ -208,36 +208,6 @@ class ActivityWidgetState extends State<ActivityWidget> {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _showEditMovieDialog(context, movie);
-                    } 
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'Write Review',
-                      child: ListTile(
-                        leading: Icon(Icons.edit),
-                        title: Text('Write Review'),
-                      ),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'Rate',
-                      child: ListTile(
-                        leading: Icon(Icons.star),
-                        title: Text('Rate'),
-                      ),
-                    ),
-                     const PopupMenuItem<String>(
-                      value: 'Remove',
-                      child: ListTile(
-                        leading: Icon(Icons.delete),
-                        title: Text('Remove'),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -248,9 +218,7 @@ class ActivityWidgetState extends State<ActivityWidget> {
   );
 }
 
-Future<void> _showEditMovieDialog(BuildContext context, Movie movie) async {
-  // Implement your edit movie dialog here
-}
+
   Future<void> _removeMovieFromWishlist(
       String listID, int movieId) async {
     try {

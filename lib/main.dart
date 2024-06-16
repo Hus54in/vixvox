@@ -5,9 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vixvox/firebase_options.dart';
 import 'package:vixvox/login/login.dart';
 import 'package:vixvox/pages/discover.dart';
-import 'package:vixvox/pages/home.dart';
+import 'package:vixvox/pages/home/home.dart';
 import 'package:vixvox/pages/profile/settings_page.dart';
-import 'package:vixvox/create/create.dart';
 import 'pages/activity.dart';
 
 Future<void> main() async {
@@ -82,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<Widget> _children = const [
     HomePageWidget(),
     DiscoverWidget(),
-    CreatePageWidget(),
+
     ActivityWidget(),
     SettingsPageWidget(),
   ];
@@ -112,13 +111,6 @@ class _MyHomePageState extends State<MyHomePage> {
               color: Colors.white,
             ),
             label: 'Discover',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(
-              Icons.add_circle_outline_sharp,
-              color: Colors.white,
-            ),
-            label: 'Create',
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(

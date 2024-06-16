@@ -1,13 +1,13 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vixvox/show_details/discussion/commentItem.dart';
 
 class CommentsWidget extends StatefulWidget {
-  final int movieID;
+  final int? movieID;
+  final int? tvShowId;
   final Function(DocumentReference) onReply; // Change callback to pass DocumentReference
   final Color color;
-  const CommentsWidget({Key? key, required this.movieID, required this.onReply, required this.color}) : super(key: key);
+  const CommentsWidget({Key? key,  this.movieID, this.tvShowId, required this.onReply, required this.color}) : super(key: key);
 
   @override
   _CommentsWidgetState createState() => _CommentsWidgetState();
@@ -23,15 +23,24 @@ class _CommentsWidgetState extends State<CommentsWidget> {
   @override
   void initState() {
     super.initState();
+    _setupCommentsQuery();
+    _scrollController.addListener(_scrollListener);
+    loadComments();
+  }
+
+  void _setupCommentsQuery() {
+    // Determine collection name and document ID based on movieID or tvShowId
+    print(widget.movieID);
+    print('CHECK------------------------------------------');
+    final collectionName = widget.movieID != null ? 'movies' : 'tv_shows';
+    final documentId = widget.movieID != null ? widget.movieID.toString() : widget.tvShowId.toString();
+
     _commentsQuery = FirebaseFirestore.instance
-        .collection('movies')
-        .doc(widget.movieID.toString())
+        .collection(collectionName)
+        .doc(documentId)
         .collection('comments')
         .orderBy('dateCreated', descending: true)
         .limit(15);
-
-    _scrollController.addListener(_scrollListener);
-    loadComments();
   }
 
   @override
@@ -53,18 +62,23 @@ class _CommentsWidgetState extends State<CommentsWidget> {
           _comments = newComments;
         }
 
-        return Padding (padding:const EdgeInsets.only( top: 12.0, left: 8, right: 4), child: ListView.builder(
-          controller: _scrollController,
-          itemCount: _comments.length,
-          itemBuilder: (context, index) {
-            final comment = _comments[index];
-            return  CommentItem(
-              comment: comment,
-              movieID: widget.movieID, color: widget.color,
-              onReply: (commentRef) => widget.onReply(commentRef), // Use the callback to handle reply
-            );
-          },
-        ));
+        return Padding(
+          padding: const EdgeInsets.only(top: 12.0, left: 8, right: 4),
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: _comments.length,
+            itemBuilder: (context, index) {
+              final comment = _comments[index];
+              return CommentItem(
+                comment: comment,
+                movieID: widget.movieID as int?,
+                tvShowId: widget.tvShowId as int?,
+                color: widget.color,
+                onReply: (commentRef) => widget.onReply(commentRef), // Use the callback to handle reply
+              );
+            },
+          ),
+        );
       },
     );
   }

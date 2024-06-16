@@ -1,10 +1,10 @@
-import 'dart:typed_data';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:vixvox/pages/profile/menu/menu.dart';
+import 'package:vixvox/pages/profile/profile_page.dart';
 
 class SettingsPageWidget extends StatefulWidget {
   const SettingsPageWidget({Key? key}) : super(key: key);
@@ -29,18 +29,6 @@ class _SettingsPageWidgetState extends State<SettingsPageWidget> {
     }
   }
 
-  Future<String?> getImageUrl() async {
-    try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profile/${FirebaseAuth.instance.currentUser!.uid}.jpg');
-      return await ref.getDownloadURL();
-    } catch (e) {
-      print('Error getting image URL: $e');
-      return null;
-    }
-  }
-
   void _signOut() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -49,105 +37,99 @@ class _SettingsPageWidgetState extends State<SettingsPageWidget> {
     }
   }
 
+  Future<String?> getUsername() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .get();
+      return userDoc.data()?['username'] as String?;
+    } catch (e) {
+      print('Error getting username: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Padding(
-        padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
-        child: Scaffold(
-          key: scaffoldKey,
-          backgroundColor: Colors.black,
-          endDrawer: Drawer(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: <Widget>[
-                const DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                  ),
-                  child: Text(
-                    'Menu',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                    ),
-                  ),
+    return Scaffold(
+      key: scaffoldKey,
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: FutureBuilder<String?>(
+          future: getUsername(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator(
+                color: Colors.white,
+              );
+            } else if (snapshot.hasError) {
+              return const Text(
+                'Error loading username',
+                style: TextStyle(
+                  fontFamily: 'Urbanist',
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
-                ListTile(
-                  leading: const Icon(Icons.logout),
-                  title: const Text('Logout'),
-                  onTap: () {
-                    _signOut();
-                    Navigator.pop(context); // Close the drawer
+              );
+            } else if (snapshot.hasData) {
+              return Text(
+                snapshot.data ?? "User Not Found",
+                style: const TextStyle(
+                  fontFamily: 'Urbanist',
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            } else {
+              return const Text(
+                'User Not Found',
+                style: TextStyle(
+                  fontFamily: 'Urbanist',
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            }
+          },
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => const MenuPage(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    const begin = Offset(1.0, 0.0);
+                    const end = Offset.zero;
+                    const curve = Curves.easeInOutExpo;
+
+                    final tween = Tween(begin: begin, end: end);
+                    final curvedAnimation = CurvedAnimation(
+                      parent: animation,
+                      curve: curve,
+                    );
+
+                    return SlideTransition(
+                      position: tween.animate(curvedAnimation),
+                      child: child,
+                    );
                   },
                 ),
-              ],
-            ),
+              );
+            },
+            icon: const Icon(Icons.menu),
           ),
-          body: Row(
-            mainAxisSize: MainAxisSize.max,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  FutureBuilder<String?>(
-                    future: getImageUrl(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (snapshot.hasError) {
-                        return const Center(child: Text('Error loading image'));
-                      } else if (snapshot.hasData) {
-                        return CircleAvatar(
-                          radius: 35,
-                          backgroundImage: CachedNetworkImageProvider(snapshot.data!),
-                        );
-                      } else {
-                        return CircleAvatar(
-                          radius: 35,
-                          backgroundImage: NetworkImage(
-                              'https://avatar.iran.liara.run/username?username=${user.displayName}'),
-                        );
-                      }
-                    },
-                  ),
-                  Positioned(
-                    bottom: -13,
-                    left: 60,
-                    child: IconButton(
-                      onPressed: selectImage,
-                      icon: const Icon(Icons.edit),
-                      iconSize: 30,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 20), // Add space between avatar and user name
-              Expanded(
-                child: Text(
-                  user.displayName ?? "User Name Not Found",
-                  style: const TextStyle(
-                    fontFamily: 'Urbanist',
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  scaffoldKey.currentState!.openEndDrawer();
-                },
-                icon: const Icon(Icons.menu, color: Colors.white),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
+      body: ProfilePageWidget(userID: FirebaseAuth.instance.currentUser!.uid),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:vixvox/TMDBapi/movie.dart';
@@ -395,8 +396,8 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget>
                         ClipOval(
                           child: CircleAvatar(
                             radius: 40,
-                            backgroundImage: NetworkImage(
-                              'https://image.tmdb.org/t/p/w500${credit.profilePath}',
+                            backgroundImage: CachedNetworkImageProvider(
+                               'https://image.tmdb.org/t/p/w500${credit.profilePath}',
                             ),
                           ),
                         ),
@@ -445,55 +446,57 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget>
   }
 
   List<Widget> _buildProviderWidgets() {
-    List<Widget> widgets = [];
+  List<Widget> widgets = [];
 
-    _watchProviders.forEach((key, value) {
-      if (key == _countryCode) {
-        final providers = value as Map<String, dynamic>;
-        providers.forEach((key, value) {
-          if (key == 'flatrate') {
-            final providerList = value as List<dynamic>;
-            for (var provider in providerList) {
-              final logoPath = provider['logo_path'];
-              final providerName = provider['provider_name'];
-              if (logoPath != null && providerName != null) {
-                widgets.add(
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12.0),
-                            child: Image.network(
-                              'https://image.tmdb.org/t/p/w92$logoPath',
-                              width: 70,
-                              height: 70,
-                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
-                            ),
+  _watchProviders.forEach((key, value) {
+    if (key == _countryCode) {
+      final providers = value as Map<String, dynamic>;
+      providers.forEach((key, value) {
+        if (key == 'flatrate') {
+          final providerList = value as List<dynamic>;
+          for (var provider in providerList) {
+            final logoPath = provider['logo_path'];
+            final providerName = provider['provider_name'];
+            if (logoPath != null && providerName != null) {
+              widgets.add(
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12.0),
+                          child: CachedNetworkImage(
+                            imageUrl: 'https://image.tmdb.org/t/p/w92$logoPath',
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => CircularProgressIndicator(),
+                            errorWidget: (context, url, error) => const Icon(Icons.error),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            providerName,
-                            style: const TextStyle(color: Colors.white),
-                          ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          providerName,
+                          style: const TextStyle(color: Colors.white),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              }
+                ),
+              );
             }
           }
-        });
-      }
-    });
+        }
+      });
+    }
+  });
 
-    return widgets;
-  }
+  return widgets;
+}
 
   Color _getRatingColor(double rating) {
     if (rating >= 10.0) {
