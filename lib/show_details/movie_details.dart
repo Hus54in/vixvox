@@ -361,7 +361,7 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget>
                     style: const TextStyle(color: Colors.white),
                     children: <TextSpan>[
                       TextSpan(
-                        text: '${_movie!.summary.substring(0, 200)}...',
+                        text: '${_movie!.summary.substring(0, 151)}...',
                         style: const TextStyle(color: Colors.white),
                       ),
                       TextSpan(
