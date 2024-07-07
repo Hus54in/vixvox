@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vixvox/firebase_options.dart';
 import 'package:vixvox/login/login.dart';
-import 'package:vixvox/pages/discover.dart';
-import 'package:vixvox/pages/home/home.dart';
-import 'package:vixvox/pages/profile/settings_page.dart';
+import 'package:vixvox/discover/discover.dart';
+import 'package:vixvox/home/home.dart';
+import 'package:vixvox/profile/settings_page.dart';
 import 'pages/activity.dart';
 
 Future<void> main() async {

@@ -1,5 +1,5 @@
 name: vixvox
-description: "A new Flutter project."
+description: "A social media app for movie lovers."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -49,18 +49,18 @@ dependencies:
   flutter_form_builder: ^9.2.1
   flutter_cache_manager: ^3.3.1
   shimmer: ^3.0.0
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.14.0
+  firebase_core: ^3.1.1
+  firebase_auth: ^5.1.1
+  cloud_firestore: ^5.0.2
   flutter_keyboard_visibility: ^6.0.0
-  email_validator: ^2.1.17
+  email_validator: ^3.0.0
   dropdown_button2: ^2.3.9
-  syncfusion_flutter_sliders: ^25.1.42
+  syncfusion_flutter_sliders: ^26.1.39
   intl: ^0.19.0
   iconic_button: ^1.4.0
   interactive_slider: ^0.2.2
   image_picker: ^1.1.2
-  firebase_storage: ^11.7.7
+  firebase_storage: ^12.1.0
   sidebar_drawer: ^0.0.1+2
   
 dev_dependencies:
@@ -72,7 +72,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

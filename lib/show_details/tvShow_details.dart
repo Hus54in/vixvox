@@ -11,7 +11,6 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:vixvox/TMDBapi/tvshow.dart';
-import 'package:vixvox/pages/summary.dart';
 import 'package:vixvox/show_details/discussion/discussion.dart';
 
 class TvShowDetailsWidget extends StatefulWidget {
@@ -35,7 +34,7 @@ class _TvShowDetailsWidgetState extends State<TvShowDetailsWidget> {
   String? _countryCode;
   bool _isLoading = true;
     PaletteGenerator paletteGenerator = PaletteGenerator.fromColors([PaletteColor(Colors.blueGrey, 111)]);
-
+  bool _isSummaryExpanded = false;
   @override
   void initState() {
     super.initState();
@@ -360,26 +359,25 @@ if (_tvshow!.posterUrl != null && _tvshow!.posterUrl.isNotEmpty) {
                         style: TextStyle(color: Colors.white, fontSize: 20),
                       ),                      const SizedBox(height: 8),
                       RichText(
-                        text: TextSpan(
-                          style: const TextStyle(color: Colors.white),
-                          children: <TextSpan>[
-                            TextSpan(
-                              text: '${_tvshow!.summary.substring(0,200)}...',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            TextSpan(
-                              text: ' Read more',
-                              style: const TextStyle(color: Colors.blue),
-                              recognizer: TapGestureRecognizer()
-                                ..onTap = () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SummaryPage(movieId: widget.tvShowId),
-                                    ),
-                                  );
-                                },
-                            ),
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.white),
+                    children: <TextSpan>[
+                      TextSpan(
+                        text: _isSummaryExpanded
+                            ? _tvshow!.summary // Show full summary if expanded
+                            : '${_tvshow!.summary.substring(0, 151)}...', // Show partial summary initially
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      TextSpan(
+                        text: _isSummaryExpanded ? ' Read less' : ' Read more', // Toggle text based on state
+                        style: const TextStyle(color: Colors.blue),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            setState(() {
+                              _isSummaryExpanded = !_isSummaryExpanded; // Toggle summary expansion
+                            });
+                          },
+                      ),
                           ],
                         ),
                       ),

@@ -9,6 +9,7 @@ class Media {
   final String posterUrl;
   final String? trailerUrl;
   final double voteAverage;
+  final String? titlewyear;
 
   Media({
     required this.id,
@@ -19,6 +20,7 @@ class Media {
     required this.posterUrl,
     this.trailerUrl,
     required this.voteAverage,
+    required this.titlewyear,
   });
 
 

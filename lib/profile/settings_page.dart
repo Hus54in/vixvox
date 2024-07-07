@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:vixvox/pages/profile/menu/menu.dart';
-import 'package:vixvox/pages/profile/profile_page.dart';
+import 'package:vixvox/profile/menu/menu.dart';
+import 'package:vixvox/profile/profile_page.dart';
 
 class SettingsPageWidget extends StatefulWidget {
   const SettingsPageWidget({Key? key}) : super(key: key);

@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:vixvox/TMDBapi/cast.dart';
 import 'package:vixvox/TMDBapi/media.dart';
+import 'package:vixvox/TMDBapi/tmdb.dart';
 
 class Movie extends Media {
   final String length;
@@ -9,6 +10,7 @@ class Movie extends Media {
   final double voteAverage;
   final List<Cast> cast;
   final Map<String, dynamic> watchProviders;
+
   
 
   Movie({
@@ -25,6 +27,7 @@ class Movie extends Media {
     required this.cast,
     this.watchProviders = const {},
     required this.voteAverage,
+    required super.titlewyear,
   }) : super( voteAverage: 0.0);
 
   factory Movie.fromMap(Map<String, dynamic> map, {String? trailerUrl}) {
@@ -42,19 +45,23 @@ class Movie extends Media {
       voteCount: map['vote_count'] ?? 0, // Provide default value if voteCount is null
       cast: [], // Initialize cast as an empty list
       watchProviders: map['watch/providers'] != null ? Map<String, dynamic>.from(map['watch/providers']) : {}, // Ensure watchProviders map is properly converted
+      titlewyear: _gettitlewyear( map['title'], map['release_date']  ),
+
     );
   }
 
   static String _getMovieLength(int? runtime) {
-    if (runtime == null) return 'N/A';
+    if (runtime == null) return '';
     int hours = runtime ~/ 60;
     int minutes = runtime % 60;
     return '$hours hour $minutes mins';
   }
 
   static String _getMovieGenres(Map<String,dynamic> genres) {
-    if (genres['genres'] == null ){
-      return 'N/A';}
+    if (genres['genres'] == null && genres['genre_ids'] != null){
+      List<int> genreIds = List<int>.from(genres['genre_ids']);
+    List<String> genreNames = genreIds.map((id) => TMDBApi().movieidtogenre(id) ?? "").toList();
+    return genreNames.join(' • ');}
     else{
     return  genres['genres'].map((genre) => genre['name'].toString()).join(' • ');
     }
@@ -66,6 +73,12 @@ class Movie extends Media {
   }
 
   static String _getPosterUrl(String? posterPath) {
-    return posterPath != null ? 'https://image.tmdb.org/t/p/w500$posterPath' : '';
+    return posterPath != null ? 'https://image.tmdb.org/t/p/w185$posterPath' : '';
+  }
+
+  static String _gettitlewyear(String title, String releaseDate) {
+     if (releaseDate == null || releaseDate.isEmpty){ return '';}
+    var date =  DateFormat('yyyy').format(DateTime.parse(releaseDate));
+    return '$title ($date)';
   }
 }

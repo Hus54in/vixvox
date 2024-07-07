@@ -8,16 +8,15 @@ import 'package:vixvox/TMDBapi/tmdb.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vixvox/show_details/discussion/discussion.dart';
-import 'package:vixvox/pages/summary.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 class MovieDetailsWidget extends StatefulWidget {
-  const MovieDetailsWidget({Key? key, required this.movieID}) : super(key: key);
+  const MovieDetailsWidget({Key? key, required this.movieID, this.movie}) : super(key: key);
 
   final int movieID;
-
+  final Movie? movie;
   @override
   State<MovieDetailsWidget> createState() => _MovieDetailsWidgetState();
 }
@@ -35,7 +34,7 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget>
   String? _countryCode;
   bool _isLoading = true;
   PaletteGenerator paletteGenerator = PaletteGenerator.fromColors([PaletteColor(Colors.blueGrey, 111)]);
-
+  bool _isSummaryExpanded = false;
   @override
   void initState() {
     super.initState();
@@ -46,7 +45,15 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget>
   }
 
   Future<void> _fetchMovieDetails() async {
-    _movie = await TMDBApi().getMovie(widget.movieID);
+    if (widget.movie != null) {
+      setState(() {
+        _movie = widget.movie;
+      });
+     
+    }
+    else{
+      _movie = await TMDBApi().getMovie(widget.movieID);
+    }
     if (_movie!.posterUrl != null && _movie!.posterUrl!.isNotEmpty) {
       paletteGenerator = await PaletteGenerator.fromImageProvider(NetworkImage(_movie!.posterUrl!));
     }
@@ -361,20 +368,19 @@ class _MovieDetailsWidgetState extends State<MovieDetailsWidget>
                     style: const TextStyle(color: Colors.white),
                     children: <TextSpan>[
                       TextSpan(
-                        text: '${_movie!.summary.substring(0, 151)}...',
+                        text: _isSummaryExpanded
+                            ? _movie!.summary // Show full summary if expanded
+                            : '${_movie!.summary.substring(0, 200)}...', // Show partial summary initially
                         style: const TextStyle(color: Colors.white),
                       ),
                       TextSpan(
-                        text: ' Read more',
+                        text: _isSummaryExpanded ? ' Read less' : ' Read more', // Toggle text based on state
                         style: const TextStyle(color: Colors.blue),
                         recognizer: TapGestureRecognizer()
                           ..onTap = () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => SummaryPage(movieId: widget.movieID),
-                              ),
-                            );
+                            setState(() {
+                              _isSummaryExpanded = !_isSummaryExpanded; // Toggle summary expansion
+                            });
                           },
                       ),
                     ],

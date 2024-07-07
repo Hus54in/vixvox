@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vixvox/TMDBapi/movie.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
-import 'package:shimmer/shimmer.dart';
-import '../show_details/movie_details.dart';
+import 'package:vixvox/show_details/movie_details.dart';
+import 'package:vixvox/show_details/movielistdetails.dart';
 
 class ActivityWidget extends StatefulWidget {
-  const ActivityWidget({Key? key}) : super(key: key);
+  const ActivityWidget({super.key});
 
   @override
   State<ActivityWidget> createState() => ActivityWidgetState();
@@ -60,7 +61,9 @@ class ActivityWidgetState extends State<ActivityWidget> {
         });
       }
     } catch (e) {
-      print('Error fetching wishlist data: $e');
+      if (kDebugMode) {
+        print('Error fetching wishlist data: $e');
+      }
     }
   }
 
@@ -79,10 +82,8 @@ class ActivityWidgetState extends State<ActivityWidget> {
         ],
       ),
       body: GestureDetector(
-        // GestureDetector to handle horizontal swipes
         onHorizontalDragUpdate: (details) {
           if (details.delta.dx > 0) {
-            // swiped right
             if (_currentPageIndex > 0) {
               setState(() {
                 _currentPageIndex--;
@@ -94,7 +95,6 @@ class ActivityWidgetState extends State<ActivityWidget> {
               );
             }
           } else if (details.delta.dx < 0) {
-            // swiped left
             if (_currentPageIndex < _wishlist.length - 1) {
               setState(() {
                 _currentPageIndex++;
@@ -129,95 +129,39 @@ class ActivityWidgetState extends State<ActivityWidget> {
     );
   }
 
- Widget _buildWishlist(int index) {
-  final moviesList = _wishlist[index]['moviesList'] as List<Movie>;
+  Widget _buildWishlist(int index) {
+    final moviesList = _wishlist[index]['moviesList'] as List<Movie>;
 
-  return ListView.builder(
-    itemCount: moviesList.length + 1,
-    itemBuilder: (context, idx) {
-      if (idx == moviesList.length) {
-        return _buildAddMovieButton();
-      } else {
-        final movie = moviesList[idx];
-        return Dismissible(
-          key: UniqueKey(),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            color: Colors.red,
-            child: const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Icon(Icons.delete, color: Colors.white),
-            ),
-          ),
-          onDismissed: (direction) {
-            setState(() {
-              _wishlist[index]['moviesList'].remove(movie);
-              _removeMovieFromWishlist(
-                  _wishlist[index]['listID'], movie.id);
-            });
-          },
-          child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          MovieDetailsWidget(movieID: movie.id),
-                    ),
-                  );
-                },child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: Image.network(
-                    movie.posterUrl,
-                    width: 100,
-                    height: 150,
-                    fit: BoxFit.cover,
-                  ),
+    return ListView.builder(
+      itemCount: moviesList.length + 1,
+      itemBuilder: (context, idx) {
+        if (idx == moviesList.length) {
+          return _buildAddMovieButton();
+        } else {
+          final movie = moviesList[idx];
+          return MovieListItem(
+            movie: movie,
+            onDismissed: () {
+              setState(() {
+                _wishlist[index]['moviesList'].remove(movie);
+                _removeMovieFromWishlist(
+                    _wishlist[index]['listID'], movie.id);
+              });
+            },
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      MovieDetailsWidget(movieID: movie.id),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${movie.title} (${(movie.releaseDate).substring(movie.releaseDate.length - 4)})',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        movie.genres,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      Text(
-                        '${movie.length} • ${movie.voteAverage} ⭐',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          )
-        );
-      }
-    },
-  );
-}
-
+              );
+            },
+          );
+        }
+      },
+    );
+  }
 
   Future<void> _removeMovieFromWishlist(
       String listID, int movieId) async {
@@ -254,7 +198,9 @@ class ActivityWidgetState extends State<ActivityWidget> {
         }
       });
     } catch (error) {
-      print("Error removing movie from wishlist: $error");
+      if (kDebugMode) {
+        print("Error removing movie from wishlist: $error");
+      }
     }
   }
 
@@ -282,7 +228,7 @@ class ActivityWidgetState extends State<ActivityWidget> {
             TextButton(
               onPressed: () async {
                 if (controller.text.isNotEmpty) {
-                  await _addWishlist(controller.text.trim());
+                                   await _addWishlist(controller.text.trim());
                   controller.clear();
                   Navigator.of(context).pop();
                 }
@@ -346,9 +292,10 @@ class ActivityWidgetState extends State<ActivityWidget> {
   }
 
   Future<void> _addWishlist(String listName) async {
-    
     try {
-      DocumentReference doc = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid);
+      DocumentReference doc = FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid);
 
       final snapshot = await doc.get();
       if (snapshot.exists && !(snapshot.data() as Map).containsKey('wishlist')) {
@@ -360,9 +307,12 @@ class ActivityWidgetState extends State<ActivityWidget> {
 
       await _fetchWishlistData();
     } catch (error) {
-      print("Error adding wishlist: $error");
+      if (kDebugMode) {
+        print("Error adding wishlist: $error");
+      }
     }
   }
+
   Future<void> _editWishlist(String newListName) async {
     try {
       String listID = _wishlist[_currentPageIndex]['listID'];
@@ -393,9 +343,12 @@ class ActivityWidgetState extends State<ActivityWidget> {
         }
       });
     } catch (error) {
-      print("Error editing wishlist: $error");
+      if (kDebugMode) {
+        print("Error editing wishlist: $error");
+      }
     }
   }
+
   Future<void> _deleteWishlist() async {
     try {
       String listID = _wishlist[_currentPageIndex]['listID'];
@@ -430,10 +383,12 @@ class ActivityWidgetState extends State<ActivityWidget> {
         }
       });
     } catch (error) {
-      print("Error deleting wishlist: $error");
+      if (kDebugMode) {
+        print("Error deleting wishlist: $error");
+      }
     }
   }
-  
+
   Future<void> _confirmDeleteList(BuildContext context) async {
     return showDialog<void>(
       context: context,
@@ -467,6 +422,7 @@ class ActivityWidgetState extends State<ActivityWidget> {
       },
     );
   }
+
   Future<void> _showEditListDialog(BuildContext context) async {
     TextEditingController controller = TextEditingController(text: _wishlist[_currentPageIndex]['listName']);
 
@@ -508,9 +464,4 @@ class ActivityWidgetState extends State<ActivityWidget> {
       },
     );
   }
-
-
-
-
 }
-

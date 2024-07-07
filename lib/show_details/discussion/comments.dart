@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vixvox/show_details/discussion/commentItem.dart';
 
 class CommentsWidget extends StatefulWidget {
@@ -7,17 +8,24 @@ class CommentsWidget extends StatefulWidget {
   final int? tvShowId;
   final Function(DocumentReference) onReply; // Change callback to pass DocumentReference
   final Color color;
-  const CommentsWidget({Key? key,  this.movieID, this.tvShowId, required this.onReply, required this.color}) : super(key: key);
+
+  const CommentsWidget({
+    Key? key,
+    this.movieID,
+    this.tvShowId,
+    required this.onReply,
+    required this.color,
+  }) : super(key: key);
 
   @override
   _CommentsWidgetState createState() => _CommentsWidgetState();
 }
-
-class _CommentsWidgetState extends State<CommentsWidget> {
+class _CommentsWidgetState extends State<CommentsWidget> with AutomaticKeepAliveClientMixin {
   late Query<Map<String, dynamic>> _commentsQuery;
   DocumentSnapshot? _lastDocument;
   final ScrollController _scrollController = ScrollController();
   List<DocumentSnapshot> _comments = [];
+  final ValueNotifier<List<DocumentSnapshot>> _commentsList = ValueNotifier<List<DocumentSnapshot>>([]);
   bool _isLoadingMore = false;
 
   @override
@@ -28,12 +36,21 @@ class _CommentsWidgetState extends State<CommentsWidget> {
     loadComments();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+
   void _setupCommentsQuery() {
-    // Determine collection name and document ID based on movieID or tvShowId
-    print(widget.movieID);
-    print('CHECK------------------------------------------');
-    final collectionName = widget.movieID != null ? 'movies' : 'tv_shows';
-    final documentId = widget.movieID != null ? widget.movieID.toString() : widget.tvShowId.toString();
+    final collectionName =
+        widget.movieID != null ? 'movies' : 'tv_shows';
+    final documentId = widget.movieID != null
+        ? widget.movieID.toString()
+        : widget.tvShowId.toString();
 
     _commentsQuery = FirebaseFirestore.instance
         .collection(collectionName)
@@ -45,10 +62,13 @@ class _CommentsWidgetState extends State<CommentsWidget> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Ensure to call super.build(context) to use wantKeepAlive
+
     return StreamBuilder<QuerySnapshot>(
       stream: _commentsQuery.snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && _comments.isEmpty) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            _comments.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -57,24 +77,30 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         }
 
         final newComments = snapshot.data!.docs;
-        // Avoid duplicate comments
         if (_comments.isEmpty) {
           _comments = newComments;
+          _commentsList.value = _comments;
         }
 
         return Padding(
           padding: const EdgeInsets.only(top: 12.0, left: 8, right: 4),
-          child: ListView.builder(
-            controller: _scrollController,
-            itemCount: _comments.length,
-            itemBuilder: (context, index) {
-              final comment = _comments[index];
-              return CommentItem(
-                comment: comment,
-                movieID: widget.movieID as int?,
-                tvShowId: widget.tvShowId as int?,
-                color: widget.color,
-                onReply: (commentRef) => widget.onReply(commentRef), // Use the callback to handle reply
+          child: ValueListenableBuilder<List<DocumentSnapshot>>(
+            valueListenable: _commentsList,
+            builder: (context, comments, _) {
+              return ListView.builder(
+                controller: _scrollController,
+                itemCount: comments.length,
+                itemBuilder: (context, index) {
+                  final comment = comments[index];
+                  return CommentItem(
+                    comment: comment,
+                    movieID: widget.movieID as int?,
+                    tvShowId: widget.tvShowId as int?,
+                    color: widget.color,
+                    onReply: (commentRef) =>
+                        widget.onReply(commentRef), // Use the callback to handle reply
+                  );
+                },
               );
             },
           ),
@@ -95,6 +121,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
     _commentsQuery.get().then((snapshot) {
       setState(() {
         _comments = snapshot.docs;
+        _commentsList.value = _comments;
         _lastDocument = _comments.isNotEmpty ? _comments.last : null;
       });
     }).catchError((error) {
@@ -109,10 +136,15 @@ class _CommentsWidgetState extends State<CommentsWidget> {
       _isLoadingMore = true;
     });
 
-    _commentsQuery.startAfterDocument(_lastDocument!).get().then((snapshot) {
+    _commentsQuery
+        .startAfterDocument(_lastDocument!)
+        .get()
+        .then((snapshot) {
       setState(() {
         _comments.addAll(snapshot.docs);
-        _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+        _commentsList.value = _comments;
+        _lastDocument =
+            snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
         _isLoadingMore = false;
       });
     }).catchError((error) {
@@ -121,11 +153,5 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         _isLoadingMore = false;
       });
     });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 }

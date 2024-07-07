@@ -30,11 +30,16 @@ class _DiscussionPageState extends State<DiscussionPage> {
     _checkUserRatedMovie();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Column(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.transparent,
+    body: GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        _textFocus.unfocus();
+      },
+      child: Column(
         children: [
           Expanded(
             child: RefreshIndicator(
@@ -45,10 +50,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
                 tvShowId: widget.tvShowId as int?,
                 color: widget.color,
                 onReply: (commentRef) {
-                  setState(() {
-                    _replyingToCommentRef = commentRef as DocumentReference<Object?>?;
-                    _textFocus.requestFocus();
-                  });
+                  _replyingToCommentRef = commentRef as DocumentReference<Object?>?;
+                  _textFocus.requestFocus();
                 },
               ),
             ),
@@ -95,10 +98,13 @@ class _DiscussionPageState extends State<DiscussionPage> {
                         child: TextField(
                           focusNode: _textFocus,
                           maxLines: null,
-                          autofocus: true,
+                          autofocus: false,
                           controller: _textController,
                           textCapitalization: TextCapitalization.sentences,
                           textInputAction: TextInputAction.send,
+                          onSubmitted: (_) {
+                            _sendMessage();
+                          },
                           decoration: InputDecoration(
                             hintText: _replyingToCommentRef != null ? 'Replying to comment...' : 'Enter your comment...',
                             border: const OutlineInputBorder(
@@ -114,13 +120,16 @@ class _DiscussionPageState extends State<DiscussionPage> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 30),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Future<void> _refreshComments() async {
     setState(() {
@@ -171,52 +180,57 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-void _sendComment() {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    final movieRating = _sliderValue.value.toInt(); // Use slider value here
-    final commentText = _textController.text;
+  void _sendComment() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final movieRating = _sliderValue.value.toInt(); // Use slider value here
 
-    final collectionName = widget.movieID != null ? 'movies' : 'tv_shows';
-    final documentId = widget.movieID != null ? widget.movieID.toString() : widget.tvShowId.toString();
+      if (_showRatingSlider ){
+        final movieRating = _userRating.toInt(); // Use user rating here 
+      }
+      final commentText = _textController.text;
 
-    userRef.update({
-      'ratings.$documentId': [movieRating],
-    }).then((_) {
-      FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(documentId)
-          .collection('comments')
-          .add({
-            'text': commentText,
-            'userID': user.uid,
-            'dateCreated': Timestamp.now(),
-            'rating': movieRating,
-            'likes': [],
-          })
-          .then((commentDoc) {
-            userRef.update({
-              'ratings.$documentId': FieldValue.arrayUnion([commentDoc.id]),
-            }).then((_) {
-              setState(() {
-                _textController.clear();
-                _showRatingSlider = false;
-                _replyingToSelf = true;
+      final collectionName = widget.movieID != null ? 'movies' : 'tv_shows';
+      final documentId = widget.movieID != null ? widget.movieID.toString() : widget.tvShowId.toString();
+
+      userRef.update({
+        'ratings.$documentId': [movieRating],
+      }).then((_) {
+        FirebaseFirestore.instance
+            .collection(collectionName)
+            .doc(documentId)
+            .collection('comments')
+            .add({
+              'deleted' : false,
+              'text': commentText,
+              'userID': user.uid,
+              'dateCreated': Timestamp.now(),
+              'rating': movieRating,
+              'likes': [],
+            })
+            .then((commentDoc) {
+              userRef.update({
+                'ratings.$documentId': FieldValue.arrayUnion([commentDoc.id]),
+              }).then((_) {
+                setState(() {
+                  _textController.clear();
+                  _showRatingSlider = false;
+                  _replyingToSelf = true;
+                  _replyingToCommentRef = null; // Clear replying to comment reference
+                });
+              }).catchError((error) {
+                print('Failed to update user comments: $error');
               });
-            }).catchError((error) {
-              print('Failed to update user comments: $error');
+            })
+            .catchError((error) {
+              print('Failed to add comment: $error');
             });
-          })
-          .catchError((error) {
-            print('Failed to add comment: $error');
-          });
-    }).catchError((error) {
-      print('Failed to update user ratings: $error');
-    });
+      }).catchError((error) {
+        print('Failed to update user ratings: $error');
+      });
+    }
   }
-}
-
 
   void _sendReply() {
     final user = FirebaseAuth.instance.currentUser;
@@ -226,6 +240,7 @@ void _sendComment() {
       _replyingToCommentRef!
           .collection('replies')
           .add({
+            'deleted' : false,
             'text': commentText,
             'userID': user.uid,
             'dateCreated': Timestamp.now(),
