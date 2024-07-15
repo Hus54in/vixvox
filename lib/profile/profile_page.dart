@@ -15,7 +15,6 @@ class ProfilePageWidget extends StatefulWidget {
   @override
   State<ProfilePageWidget> createState() => ProfilePageWidgetState();
 }
-
 class ProfilePageWidgetState extends State<ProfilePageWidget> {
   DocumentSnapshot? userDoc;
   List<ReviewDataLoader> reviewLoaders = [];
@@ -24,8 +23,8 @@ class ProfilePageWidgetState extends State<ProfilePageWidget> {
   bool isLoading = false;
   bool hasMore = true;
   bool isFollowing = false;
-  List<String> followers = [];
-  List<String> following = [];
+  List<String> shownUserFollowers = [];
+  List<String> shownUserFollowing = [];
   final ScrollController _scrollController = ScrollController();
   QuerySnapshot? lastLoadedSnapshot;
 
@@ -60,7 +59,8 @@ class ProfilePageWidgetState extends State<ProfilePageWidget> {
 
       List<ReviewDataLoader> loaders = [];
       if (user.exists) {
-        final ratings = user.get('ratings') as Map<String, dynamic>;
+        try {
+        final ratings = user.get('ratings') as Map<String, dynamic> ;
         for (String key in ratings.keys) {
           for (int i = 0; i < ratings[key].length; i += 2) {
             String reviewId = ratings[key][i + 1];
@@ -71,14 +71,18 @@ class ProfilePageWidgetState extends State<ProfilePageWidget> {
             ));
           }
         }
+      }
+      catch (e) {
+        print('Failed to load ratings: $e');
+      }
 
-        // Fetch followers and following
+        // Fetch followers and following of shown user
         final followersList = user.get('followers') ?? [];
         final followingList = user.get('following') ?? [];
 
         setState(() {
-          followers = List<String>.from(followersList);
-          following = List<String>.from(followingList);
+          shownUserFollowers = List<String>.from(followersList);
+          shownUserFollowing = List<String>.from(followingList);
         });
       }
 
@@ -106,10 +110,10 @@ class ProfilePageWidgetState extends State<ProfilePageWidget> {
   Future<void> _checkFollowingStatus() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      final userSnapshot = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
-      final followingList = userSnapshot.get('following') ?? [];
+      final userSnapshot = await FirebaseFirestore.instance.collection('users').doc(widget.userID).get();
+      final followingList = userSnapshot.get('followers') ?? [];
       setState(() {
-        isFollowing = followingList.contains(widget.userID);
+        isFollowing = followingList.contains(currentUser.uid);
       });
     }
   }
@@ -211,8 +215,7 @@ class ProfilePageWidgetState extends State<ProfilePageWidget> {
         });
         setState(() {
           isFollowing = true;
-          followers.add(currentUser.uid);
-          following.add(widget.userID);
+          shownUserFollowers.add(currentUser.uid);
         });
       } catch (error) {
         print('Failed to follow user: $error');
@@ -233,102 +236,100 @@ class ProfilePageWidgetState extends State<ProfilePageWidget> {
         });
         setState(() {
           isFollowing = false;
-          followers.remove(currentUser.uid);
-          following.remove(widget.userID);
+          shownUserFollowers.remove(currentUser.uid);
         });
       } catch (error) {
         print('Failed to unfollow user: $error');
         // Handle error as needed
       }
     }
-  }@override
-Widget build(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.all(10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (profileImageUrl == null)
-              const Center(child: CircularProgressIndicator())
-            else
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               CircleAvatar(
                 radius: 45,
                 backgroundImage: CachedNetworkImageProvider(
-                  profileImageUrl!,
+                  profileImageUrl ?? 'https://avatar.iran.liara.run/username?username=${userDoc?.get('displayName')}',
                 ),
               ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    userDoc?.get('displayName') ?? "User Name Not Found",
-                    style: const TextStyle(
-                      fontFamily: 'Urbanist',
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '${followers.length} Followers | ${following.length} Following',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 10), // Adjust as needed
-                  if (FirebaseAuth.instance.currentUser != null &&
-                      FirebaseAuth.instance.currentUser!.uid != widget.userID)
-                    ElevatedButton(
-                      onPressed: isFollowing ? _unfollowUser : _followUser,
-                      style: ButtonStyle(
-                        backgroundColor: isFollowing ? MaterialStateProperty.all<Color>(Colors.blue) : MaterialStateProperty.all<Color>(Colors.white),
-                        padding: MaterialStateProperty.all<EdgeInsetsGeometry>(EdgeInsets.symmetric(vertical: 10, horizontal: 40)),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      userDoc?.get('displayName') ?? "User Name Not Found",
+                      style: const TextStyle(
+                        fontFamily: 'Urbanist',
+                        color: Colors.white,
+                        fontSize: 25,
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: Text(
-                        isFollowing ? 'Unfollow' : 'Follow',
-                        style: TextStyle(
-                          color: isFollowing ? Colors.white : Colors.blue,
-                          fontSize: 18,
+                    ),
+                    Text(
+                      '${shownUserFollowers.length} Followers | ${shownUserFollowing.length} Following',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 10), // Adjust as needed
+                    if (FirebaseAuth.instance.currentUser != null &&
+                        FirebaseAuth.instance.currentUser!.uid != widget.userID)
+                      ElevatedButton(
+                        onPressed: isFollowing ? _unfollowUser : _followUser,
+                        style: ButtonStyle(
+                          backgroundColor: isFollowing ? MaterialStateProperty.all<Color>(Colors.blue) : MaterialStateProperty.all<Color>(Colors.white),
+                          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(EdgeInsets.symmetric(vertical: 10, horizontal: 40)),
+                        ),
+                        child: Text(
+                          isFollowing ? 'Unfollow' : 'Follow',
+                          style: TextStyle(
+                            color: isFollowing ? Colors.white : Colors.blue,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        if (reviewWidgets.isEmpty && isLoading)
-          const Center(child: CircularProgressIndicator())
-        else if (reviewWidgets.isEmpty)
-          const Center(child: Text('No reviews found'))
-        else
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refreshProfileData,
-              child: ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                controller: _scrollController,
-                itemCount: reviewWidgets.length + ( hasMore ? 1 : 0),
-                cacheExtent: 1000, // Increase cache extent
-                itemBuilder: (context, index) {
-                  if (index == reviewWidgets.length) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return reviewWidgets[index];
-                },
-              ),
-            ),
+            ],
           ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 20),
+
+          if (reviewWidgets.isEmpty && isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (reviewWidgets.isEmpty)
+            const Center(child: Text('No reviews found'))
+          else
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _refreshProfileData,
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  controller: _scrollController,
+                  itemCount: reviewWidgets.length + (hasMore ? 1 : 0),
+                  cacheExtent: 1000, // Increase cache extent
+                  itemBuilder: (context, index) {
+                    if (index == reviewWidgets.length) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return reviewWidgets[index];
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

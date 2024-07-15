@@ -62,7 +62,7 @@ class TVShow extends Media {
 
   static String _getTVShowReleaseDate(String? releaseDate) {
     if (releaseDate == null) return 'N/A';
-    return DateFormat('MMMM dd, yyyy').format(DateTime.parse(releaseDate));
+    return DateFormat('MMM dd, yyyy').format(DateTime.parse(releaseDate));
   }
 
   static String _getTVShowPoster(String? posterPath) {

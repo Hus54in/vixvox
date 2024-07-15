@@ -69,11 +69,11 @@ class Movie extends Media {
 
   static String _getFormattedDate(String? date) {
     if (date == null || date.length == 0){ return 'N/A';}
-    return DateFormat('MMMM dd, yyyy').format(DateTime.parse(date));
+    return DateFormat('MMM dd, yyyy').format(DateTime.parse(date));
   }
 
   static String _getPosterUrl(String? posterPath) {
-    return posterPath != null ? 'https://image.tmdb.org/t/p/w185$posterPath' : '';
+    return posterPath != null ? 'https://image.tmdb.org/t/p/w342$posterPath' : '';
   }
 
   static String _gettitlewyear(String title, String releaseDate) {

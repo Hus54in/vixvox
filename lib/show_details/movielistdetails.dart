@@ -81,13 +81,21 @@ class MovieListItem extends StatelessWidget {
                         color: Colors.grey,
                       ),
                     ),
-                    Text(
-                      '${(movie?.length ?? tvShow?.length ?? '').isNotEmpty ? '${movie?.length ?? tvShow?.length} • ' : ''}${movie?.voteAverage ?? tvShow?.voteAverage ?? ''} ⭐',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
+                     Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                color: _getRatingColor(movie?.voteAverage.toDouble() ?? tvShow?.voteAverage.toDouble() ?? 0.0),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              child: Text(
+                               movie?.voteAverage.toStringAsFixed(1) ?? tvShow?.voteAverage.toStringAsFixed(1) ?? 'N/A',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                    
 
                   ],
                 ),

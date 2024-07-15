@@ -129,6 +129,21 @@ class _CommentItemState extends State<CommentItem> {
                     _formatTime(widget.comment['dateCreated']),
                     style: const TextStyle(color: Colors.grey),
                   ),
+                  const SizedBox(width: 8),
+                  Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                color: _getRatingColor(widget.comment['rating'].toDouble()),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              child: Text(
+                                widget.comment['rating'].toString(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                 ],
               );
             },
@@ -293,6 +308,19 @@ class _CommentItemState extends State<CommentItem> {
     } catch (error) {
       print('Failed to delete comment: $error');
       // Handle error scenario, e.g., show error message
+    }
+  }
+    Color _getRatingColor(double rating) {
+    if (rating >= 10.0) {
+      return Colors.green.shade900;
+    } else if (rating >= 7.0) {
+      return const Color.fromARGB(255, 9, 151, 14);
+    } else if (rating >= 5.0) {
+      return Colors.yellow.shade600;
+    } else if (rating >= 3.0) {
+      return Colors.orange.shade600;
+    } else {
+      return Colors.red.shade900;
     }
   }
 }

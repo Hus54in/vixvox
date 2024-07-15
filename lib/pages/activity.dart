@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vixvox/TMDBapi/movie.dart';
 import 'package:vixvox/TMDBapi/tmdb.dart' as tmdb;
+import 'package:vixvox/TMDBapi/tvshow.dart';
 import 'package:vixvox/show_details/movie_details.dart';
 import 'package:vixvox/show_details/movielistdetails.dart';
+import 'package:vixvox/show_details/tvShow_details.dart';
 
 class ActivityWidget extends StatefulWidget {
   const ActivityWidget({super.key});
@@ -19,6 +21,7 @@ class ActivityWidgetState extends State<ActivityWidget> {
   late List<Map<String, dynamic>> _wishlist = [];
   late PageController _pageController;
   int _currentPageIndex = 0;
+  ValueNotifier<String> mediaType = ValueNotifier<String>('Movie');
 
   @override
   void initState() {
@@ -26,7 +29,12 @@ class ActivityWidgetState extends State<ActivityWidget> {
     _pageController = PageController(initialPage: _currentPageIndex);
     _fetchWishlistData();
   }
-
+  @override
+  void dispose() {
+    _pageController.dispose();
+    mediaType.dispose();
+    super.dispose();
+  }
   Future<void> _fetchWishlistData() async {
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -41,19 +49,36 @@ class ActivityWidgetState extends State<ActivityWidget> {
         for (var entry in wishlist.entries) {
           final listID = entry.key;
           final listName = entry.value['name'] as String;
+          final type = entry.value['type'] as String;
           final moviesList = entry.value['list'] as List<dynamic>;
 
           final List<Movie> movieObjects = [];
-          for (var movieId in moviesList) {
-            final movie = await tmdb.TMDBApi().getMovie(movieId);
-            movieObjects.add(movie);
-          }
-
-          wishlistData.add({
+          final List<TVShow> tvShowObjects = [];
+          if (type == 'Movie') {
+            for (var movieId in moviesList) {
+              final movie = await tmdb.TMDBApi().getMovie(movieId);
+              movieObjects.add(movie);
+            }
+            wishlistData.add({
             'listName': listName,
+            'type': type,
             'moviesList': movieObjects,
             'listID': listID,
           });
+          } else {
+            for (var tvShowId in moviesList) {
+              final tvShow = await tmdb.TMDBApi().getTVShow(tvShowId);
+              tvShowObjects.add(tvShow);
+            }
+            wishlistData.add({
+            'listName': listName,
+            'type': type,
+            'moviesList': tvShowObjects,
+            'listID': listID,
+          });
+          }
+
+
         }
 
         setState(() {
@@ -130,17 +155,42 @@ class ActivityWidgetState extends State<ActivityWidget> {
   }
 
   Widget _buildWishlist(int index) {
-    final moviesList = _wishlist[index]['moviesList'] as List<Movie>;
+    final type = _wishlist[index]['type'] as String;
+
+
+    final moviesList = _wishlist[index]['moviesList']; 
+    print(moviesList);
 
     return ListView.builder(
-      itemCount: moviesList.length + 1,
+      itemCount: moviesList.length,
       itemBuilder: (context, idx) {
-        if (idx == moviesList.length) {
-          return _buildAddMovieButton();
-        } else {
+       
           final movie = moviesList[idx];
-          return MovieListItem(
-            movie: movie,
+
+          if (type == 'Movie') {
+            return MovieListItem(
+              movie: movie,
+              onDismissed: () {
+                setState(() {
+                  _wishlist[index]['moviesList'].remove(movie);
+                  _removeMovieFromWishlist(
+                      _wishlist[index]['listID'], movie.id);
+                });
+              },
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        MovieDetailsWidget(movieID: movie.id, movie: movie,),
+                  ),
+                );
+              },
+            );
+          }
+          else {
+          return  MovieListItem(
+            tvShow: movie ,
             onDismissed: () {
               setState(() {
                 _wishlist[index]['moviesList'].remove(movie);
@@ -153,12 +203,12 @@ class ActivityWidgetState extends State<ActivityWidget> {
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      MovieDetailsWidget(movieID: movie.id),
+                      TvShowDetailsWidget(tvShowId: movie.id, tvshow: movie,),
                 ),
               );
             },
-          );
-        }
+          ); }
+        
       },
     );
   }
@@ -204,114 +254,103 @@ class ActivityWidgetState extends State<ActivityWidget> {
     }
   }
 
-  Future<void> _showAddListDialog(BuildContext context) async {
-    TextEditingController controller = TextEditingController();
+Future<void> _showAddListDialog(BuildContext context) async {
+  TextEditingController controller = TextEditingController();
 
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Add New Wishlist'),
-          content: TextField(
-            controller: controller,
-            decoration:
-                const InputDecoration(hintText: 'Enter Wishlist Name'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Add New Wishlist'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'Enter Wishlist Name'),
             ),
-            TextButton(
-              onPressed: () async {
-                if (controller.text.isNotEmpty) {
-                                   await _addWishlist(controller.text.trim());
-                  controller.clear();
-                  Navigator.of(context).pop();
-                }
+            const SizedBox(height: 20),
+            ValueListenableBuilder<String>(
+              valueListenable: mediaType,
+              builder: (context, value, child) {
+                return ToggleButtons(
+                  isSelected: [value == 'Movie', value == 'TV Show'],
+                  onPressed: (index) {
+                    if (index == 0) {
+                      mediaType.value = 'Movie';
+                    } else {
+                      mediaType.value = 'TV Show';
+                    }
+                  },
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text('Movie'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text('TV Show'),
+                    ),
+                  ],
+                );
               },
-              child: const Text('Add'),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  Widget _buildAddMovieButton() {
-    return GestureDetector(
-      onTap: () {
-        // Handle add movie action
-      },
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: Container(
-                width: 100,
-                height: 150,
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Icon(
-                    Icons.add,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-            ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
           ),
-          const SizedBox(width: 16),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Add Movie',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
+          TextButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                await _addWishlist(controller.text.trim(), mediaType.value);
+                controller.clear();
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('Add'),
           ),
         ],
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
-  Future<void> _addWishlist(String listName) async {
-    try {
-      DocumentReference doc = FirebaseFirestore.instance
-          .collection('users')
-          .doc(FirebaseAuth.instance.currentUser!.uid);
 
-      final snapshot = await doc.get();
-      if (snapshot.exists && !(snapshot.data() as Map).containsKey('wishlist')) {
-        await doc.set({'wishlist': {}}, SetOptions(merge: true));
+
+
+
+
+Future<void> _addWishlist(String listName, String mediaType) async {
+  try {
+    DocumentReference doc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(FirebaseAuth.instance.currentUser!.uid);
+
+    final snapshot = await doc.get();
+    if (snapshot.exists && !(snapshot.data() as Map).containsKey('wishlist')) {
+      await doc.set({'wishlist': {}}, SetOptions(merge: true));
+    }
+
+    final listID = listName.hashCode.toString();
+    await doc.set({
+      'wishlist': {
+        listID: {'name': listName, 'type': mediaType, 'list': []}
       }
+    }, SetOptions(merge: true));
 
-      final listID = listName.hashCode.toString();
-      await doc.set({'wishlist': {listID: {'name': listName, 'list': []}}}, SetOptions(merge: true));
-
-      await _fetchWishlistData();
-    } catch (error) {
-      if (kDebugMode) {
-        print("Error adding wishlist: $error");
-      }
+    await _fetchWishlistData();
+  } catch (error) {
+    if (kDebugMode) {
+      print("Error adding wishlist: $error");
     }
   }
+}
 
   Future<void> _editWishlist(String newListName) async {
     try {

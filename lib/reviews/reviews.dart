@@ -189,7 +189,7 @@ class _ReviewWidgetState extends State<ReviewWidget> with AutomaticKeepAliveClie
         final userData = snapshot.data!['user'].data() as Map<String, dynamic>;
 
         final dateCreated = reviewData['dateCreated'] as Timestamp;
-        final rating = reviewData['rating'] as int;
+        final rating = reviewData['rating'] ;
         _currentTextNotifier.value = reviewData['text'] as String;
         final userId = reviewData['userID'] as String;
         final displayName = userData['displayName'] ?? 'Unknown User';
@@ -375,6 +375,7 @@ class _ReviewWidgetState extends State<ReviewWidget> with AutomaticKeepAliveClie
                       ),
                       icon: const Icon(Icons.more_horiz),
                       itemBuilder: (context) => [
+                        if (FirebaseAuth.instance.currentUser?.uid == reviewData['userID'])  
                         PopupMenuItem(
                           child: ListTile(
                             leading: const Icon(Icons.edit),
@@ -385,6 +386,7 @@ class _ReviewWidgetState extends State<ReviewWidget> with AutomaticKeepAliveClie
                             },
                           ),
                         ),
+                         if (FirebaseAuth.instance.currentUser?.uid == reviewData['userID'])  
                         PopupMenuItem(
                           child: ListTile(
                             leading: const Icon(Icons.delete, color: Colors.red),

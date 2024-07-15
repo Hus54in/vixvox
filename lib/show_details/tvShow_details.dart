@@ -14,10 +14,10 @@ import 'package:vixvox/TMDBapi/tvshow.dart';
 import 'package:vixvox/show_details/discussion/discussion.dart';
 
 class TvShowDetailsWidget extends StatefulWidget {
-  const TvShowDetailsWidget({super.key, required this.tvShowId});
+  const TvShowDetailsWidget({super.key, required this.tvShowId, this.tvshow});
 
   final int tvShowId;
-
+  final TVShow? tvshow;
   @override
   State<TvShowDetailsWidget> createState() => _TvShowDetailsWidgetState();
 }
@@ -45,14 +45,18 @@ class _TvShowDetailsWidgetState extends State<TvShowDetailsWidget> {
   }
 
   Future<void> _fetchMovieDetails() async {
-    _tvshow = await TMDBApi().getTVShow(widget.tvShowId);
+    if (widget.tvshow != null) {
+      _tvshow = widget.tvshow;
+    } else {
+      _tvshow = await TMDBApi().getTVShow(widget.tvShowId);
+    }
 if (_tvshow!.posterUrl != null && _tvshow!.posterUrl.isNotEmpty) {
    paletteGenerator = await PaletteGenerator.fromImageProvider(NetworkImage(_tvshow!.posterUrl!));
 }  setState(() {
       dominantColor = paletteGenerator.dominantColor?.color ?? Colors.black;
       darkVibrantColor = paletteGenerator.darkVibrantColor?.color ?? dominantColor;
     });
-    _watchProviders = await TMDBApi().getMovieWatchProviders(widget.tvShowId);
+    _watchProviders = await TMDBApi().getTVShowWatchProviders(widget.tvShowId);
     setState(() {
       _watchProviders = _watchProviders;
       _isLoading = false;

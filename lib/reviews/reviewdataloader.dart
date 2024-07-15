@@ -12,12 +12,15 @@ class ReviewDataLoader {
   Movie? movie;
   TVShow? tvShow;
   late Future<Map<String, dynamic>> _reviewAndUserDocumentFuture;
+  
+
 
   ReviewDataLoader({this.movieId, this.tvshowId, required this.documentId}) {
     _initializeData();
     _reviewAndUserDocumentFuture = _initializeReviewAndUserDocument();
   }
 
+    get datecreated => _reviewAndUserDocumentFuture.then((value) => value['review']['datecreated']);
   Future<void> _initializeData() async {
     if (movieId != null) {
       movie = await tmdb.TMDBApi().getMovie(movieId!);

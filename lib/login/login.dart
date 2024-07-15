@@ -90,11 +90,11 @@ class _LoginWidgetState extends State<LoginWidget> {
                             padding:
                                 const EdgeInsetsDirectional.fromSTEB(32, 0, 0, 0),
                             child: Text(
-                              'brand.ai',
+                              'VixVox',
                               style: GoogleFonts.plusJakartaSans(
                                 textStyle: const TextStyle(
                                   color: Color(0xFF101213),
-                                  fontSize: 24,
+                                  fontSize: 35,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -110,11 +110,11 @@ class _LoginWidgetState extends State<LoginWidget> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Welcome Back',
+                                  'Social Media for your favourite Movies and TV Shows.',
                                   style: TextStyle(
                                     fontFamily: 'Plus Jakarta Sans',
                                     color: Color(0xFF101213),
-                                    fontSize: 36,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -122,7 +122,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                   padding: EdgeInsetsDirectional.fromSTEB(
                                       0, 12, 0, 24),
                                   child: Text(
-                                    'Let\'s get started by filling out the form below.',
+                                    'Login to get started!',
                                     style: TextStyle(
                                       fontFamily: 'Plus Jakarta Sans',
                                       color: Color(0xFF57636C),
@@ -151,10 +151,8 @@ class _LoginWidgetState extends State<LoginWidget> {
                                     child: TextFormField(
                                       controller: _model.emailAddressController,
                                       focusNode: _model.emailAddressFocusNode,
-                                       onTap: () {
-    FocusScope.of(context).requestFocus(_model.emailAddressFocusNode);
-  },
-                                      autofocus: false,
+                                      
+                                      autofocus: true,
                                       autofillHints: const [AutofillHints.email],
                                       obscureText: false,
                                       decoration: InputDecoration(
@@ -220,10 +218,8 @@ class _LoginWidgetState extends State<LoginWidget> {
                                     child: TextFormField(
                                       controller: _model.passwordController,
                                       focusNode: _model.passwordFocusNode,
-                                      onTap: () {
-    FocusScope.of(context).requestFocus(_model.passwordFocusNode);
-  },
-                                      autofocus: false,
+                                      
+                                      autofocus: true,
                                       autofillHints: const [AutofillHints.password],
                                       
                                       obscureText: !_model.passwordVisibility,
@@ -295,7 +291,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                     ),
                                   ),
                                 ),
-                                 if (_error.isNotEmpty)
+                                 if (_error != '')
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 child: Text(
@@ -394,26 +390,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                 ),
               ),
               
-                Expanded(
-                  flex: 6,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Container(
-                      width: 100,
-                      height: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        image: const DecorationImage(
-                          fit: BoxFit.cover,
-                          image: NetworkImage(
-                            'https://images.unsplash.com/photo-1514924013411-cbf25faa35bb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1380&q=80',
-                          ),
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ),
+      
             ],
           ),
         ),
@@ -429,11 +406,11 @@ class _LoginWidgetState extends State<LoginWidget> {
     await FirebaseAuth.instance.signInWithEmailAndPassword(email: _model.emailAddressController.text.trim(), password: _model.passwordController.text.trim());  
     }
     on FirebaseAuthException catch(e){
-      if (e.code == "INVALID_LOGIN_CREDENTIALS") {
+          
           setState(() {
-            _error = 'Wrong email or password.';
-          });
-      }
+            _error = e.code;
+        
+          }); 
       
 
   }
