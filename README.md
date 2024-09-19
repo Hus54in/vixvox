@@ -27,33 +27,42 @@ VixVox is a dynamic social media platform designed specifically for movie and sh
 
 ### Create an Account
 Get Started by clicking on Sign Up here then fill out necessary information. Validate your email address by clicking on the link sent to the given email.
+<div><img src="readme_photos/create_account_page.png" alt="Create an Account" width="300"/></div>
 
-![Sign Up](readme_photos/signup.png)
 
 ### Login
 Login to the account by providing email and password.
+<div><img src="readme_photos\login_page.png" alt="Login page" width="300"/></div>
 
-![Login](readme_photos/login.png)
 
 ### Search
 Find your favourite movies by writing your favourite movie's name. Click on the provided movie.
+<div style="display: flex; flex-direction: row;">
+<img src="readme_photos\search_page.png" alt="Login page" width="300"/>
+   <img src="readme_photos\search_results.png" alt="Login page" width="300"/>
+ 
+</div>
 
-![Search](readme_photos/search.png)
 
 ### Adding to Wishlist
 You can also add your Movies/Tv Shows to wishlist by clicking on the "+" button with your favourite wishlist as the name.
 
-![Wishlist](readme_photos/wishlist.png)
+<div style="display: flex; flex-direction: row;">
+   <img src="readme_photos\wishlist_movies.png" alt="Login page" width="300"/>  <img src="readme_photos\add_a_new_wishlist.png" alt="Login page" width="300"/>
+   
+</div>
 
 ### Discovering new Movies/Tv Shows
 You can find your new Movies or Tv Shows by scrolling the discover page.
-
-![Discover](readme_photos/discover.png)
+<div><img src="readme_photos\discover_page.png" alt="Login page" width="300"/></div>
 
 ### Write A Review
 Write a review by clicking on the discussion tab of your favourite Movies or Tv Shows.
 
-![Review](readme_photos/review.png)
+<div style="display: flex; flex-direction: row;">
+   <img src="readme_photos\movie_details.png" alt="Login page" width="300"/>
+      <img src="readme_photos\movie_discussion.png" alt="Login page" width="300"/>
+</div>
 
 ## Authors
 
