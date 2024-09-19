@@ -25,18 +25,35 @@ VixVox is a dynamic social media platform designed specifically for movie and sh
 - Firebase Analytics: For tracking user interactions and app usage.
 ## Usage/Examples
 
+### Create an Account
+Get Started by clicking on Sign Up here then fill out necessary information. Validate your email address by clicking on the link sent to the given email.
 
-Create an Account: Get Started by clicking on Sign Up here then fillout necessary information. Validate your email address by clicking on link sent to the given email.
+![Sign Up](readme_photos/signup.png)
 
-Login: Login to the account by providing email and password.
+### Login
+Login to the account by providing email and password.
 
-Search: Find your favourite movies by writing your favourite movie's name. Click on the provided movie. 
+![Login](readme_photos/login.png)
 
-Adding to Wishlist: You can also add your Movies/Tv Shows to wishlist by clicking on the "+" button with your favourite wishlist as the name.
+### Search
+Find your favourite movies by writing your favourite movie's name. Click on the provided movie.
 
-Discovering new Movies/Tv Shows: You can find your new Movies or Tv Shows by scrolling the discover page
+![Search](readme_photos/search.png)
 
-Write A Review: Write a review by clicking on discussion tab of your favourite Movies or Tv Shows. 
+### Adding to Wishlist
+You can also add your Movies/Tv Shows to wishlist by clicking on the "+" button with your favourite wishlist as the name.
+
+![Wishlist](readme_photos/wishlist.png)
+
+### Discovering new Movies/Tv Shows
+You can find your new Movies or Tv Shows by scrolling the discover page.
+
+![Discover](readme_photos/discover.png)
+
+### Write A Review
+Write a review by clicking on the discussion tab of your favourite Movies or Tv Shows.
+
+![Review](readme_photos/review.png)
 
 ## Authors
 
