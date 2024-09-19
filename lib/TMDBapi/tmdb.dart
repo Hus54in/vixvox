@@ -9,7 +9,7 @@ import 'package:vixvox/TMDBapi/media.dart';
 import 'dart:typed_data';
 
 class TMDBApi {
-  final String _apiKey = "a8db0646a23b7ea703e4c83a5ca720d1";
+  final String _apiKey = "tmdb API";
   final String _baseUrl = 'https://api.themoviedb.org/3';
   final DefaultCacheManager _cacheManager = DefaultCacheManager();
 
